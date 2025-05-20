@@ -1,6 +1,5 @@
 package com.tazy.meuapp
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.toggleable
@@ -18,28 +17,45 @@ import com.google.firebase.firestore.SetOptions
 
 @Composable
 fun LoginPrimeiraVez(
-    navController: NavController
+    navController: NavController,
+    modoEdicao: Boolean = false
 ) {
-    var bio by remember { mutableStateOf("") }
-
-    val interessesLista = listOf(
-        "Esportes", "Leitura", "Música", "Filmes", "Viagens", "Culinária",
-        "Tecnologia", "Jogos", "Arte", "Fotografia"
-    )
-
-    val interessesSelecionados = remember { mutableStateListOf<String>() }
-
     val firestore = FirebaseFirestore.getInstance()
     val auth = FirebaseAuth.getInstance()
+    val currentUser = auth.currentUser
+
+    var bio by remember { mutableStateOf("") }
+    val interessesLista = listOf(
+        "Esportes", "Leitura", "Música", "Filmes", "Viagens",
+        "Culinária", "Tecnologia", "Jogos", "Arte", "Fotografia"
+    )
+    val interessesSelecionados = remember { mutableStateListOf<String>() }
+    var erro by remember { mutableStateOf("") }
+
+    // Carregar dados existentes se for edição
+    LaunchedEffect(Unit) {
+        if (modoEdicao && currentUser != null) {
+            firestore.collection("usuarios")
+                .document(currentUser.uid)
+                .get()
+                .addOnSuccessListener { document ->
+                    bio = document.getString("bio") ?: ""
+                    val interesses = document.get("interesses") as? List<String> ?: emptyList()
+                    interessesSelecionados.addAll(interesses)
+                }
+                .addOnFailureListener {
+                    erro = "Erro ao carregar perfil"
+                }
+        }
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp)
-            .background(Color.White)
     ) {
         Text(
-            text = "Complete seu perfil",
+            text = if (modoEdicao) "Editar Perfil" else "Complete seu perfil",
             fontSize = 24.sp,
             modifier = Modifier.padding(bottom = 16.dp)
         )
@@ -47,7 +63,7 @@ fun LoginPrimeiraVez(
         OutlinedTextField(
             value = bio,
             onValueChange = { bio = it },
-            label = { Text("Escreva uma bio") },
+            label = { Text("Bio") },
             modifier = Modifier
                 .fillMaxWidth()
                 .height(120.dp)
@@ -55,28 +71,23 @@ fun LoginPrimeiraVez(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Text(text = "Selecione seus interesses:", fontSize = 18.sp)
-
-        Spacer(modifier = Modifier.height(8.dp))
+        Text("Selecione seus interesses:", fontSize = 18.sp)
 
         LazyColumn(modifier = Modifier.weight(1f)) {
             items(interessesLista.size) { index ->
                 val interesse = interessesLista[index]
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
                         .fillMaxWidth()
                         .toggleable(
                             value = interessesSelecionados.contains(interesse),
                             onValueChange = {
-                                if (it) {
-                                    interessesSelecionados.add(interesse)
-                                } else {
-                                    interessesSelecionados.remove(interesse)
-                                }
+                                if (it) interessesSelecionados.add(interesse)
+                                else interessesSelecionados.remove(interesse)
                             }
                         )
-                        .padding(8.dp)
+                        .padding(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
                     Checkbox(
                         checked = interessesSelecionados.contains(interesse),
@@ -87,35 +98,45 @@ fun LoginPrimeiraVez(
             }
         }
 
+        if (erro.isNotEmpty()) {
+            Text(
+                text = erro,
+                color = Color.Red,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+        }
+
         Button(
             onClick = {
-                val currentUser = auth.currentUser
                 if (currentUser == null) {
-                    // Aqui você pode mostrar um erro ou redirecionar para login
+                    erro = "Usuário não autenticado"
                     return@Button
                 }
 
-                val dadosUsuario = hashMapOf(
+                val dados = hashMapOf(
                     "bio" to bio,
                     "interesses" to interessesSelecionados.toList()
                 )
 
                 firestore.collection("usuarios")
                     .document(currentUser.uid)
-                    .set(dadosUsuario, SetOptions.merge()) // Aqui faz merge
+                    .set(dados, SetOptions.merge())
                     .addOnSuccessListener {
-                        // Navega para próxima tela depois do cadastro completo
-                        navController.navigate("telaPrincipal") {
-                            popUpTo("loginPrimeiraVez") { inclusive = true }
+                        if (modoEdicao) {
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate("telaPrincipal") {
+                                popUpTo("loginPrimeiraVez") { inclusive = true }
+                            }
                         }
                     }
                     .addOnFailureListener {
-                        // Aqui você pode mostrar uma mensagem de erro para o usuário
+                        erro = "Erro ao salvar alterações"
                     }
             },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Salvar")
+            Text(if (modoEdicao) "Salvar Alterações" else "Finalizar Cadastro")
         }
     }
 }

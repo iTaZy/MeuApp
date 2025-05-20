@@ -88,49 +88,79 @@ private fun ContentState(
     state: TelaPrincipalState
 ) {
     Column(
-        Modifier
+        modifier = Modifier
             .fillMaxSize()
             .background(Color.White)
-            .padding(16.dp)
     ) {
+        // Cabeçalho
         Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Column {
                 Text(
                     "Olá, ${state.nomeUsuario}!",
                     fontSize = 20.sp,
-                    fontWeight = FontWeight.Bold,
                     color = Color(0xFF2196F3)
                 )
                 Text(
                     "Condomínio: ${state.codigoCondominio}",
-                    fontSize = 14.sp,
                     color = Color.Gray
                 )
             }
-            IconButton(onClick = { viewModel.atualizarDados() }) {
-                Icon(Icons.Default.Refresh, contentDescription = "Atualizar")
+
+            // Botão de Edição
+            Button(
+                onClick = {
+                    navController.navigate("loginPrimeiraVez") {
+                        popUpTo("telaPrincipal") { saveState = true }
+                    }
+                },
+                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
+            ) {
+                Text("Editar Perfil")
             }
         }
 
-        Spacer(Modifier.height(16.dp))
+        // Grupos Recomendados
+        Text(
+            text = "Grupos Recomendados",
+            modifier = Modifier.padding(16.dp),
+            color = Color(0xFF2196F3)
+        )
 
-        Text("Grupos recomendados", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2196F3))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
+        LazyRow(
+            modifier = Modifier.padding(start = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
             items(state.gruposRecomendados) { grupo ->
-                GrupoRecomendadoCard(grupo, navController, viewModel)
+                GrupoRecomendadoCard(
+                    grupo = grupo,
+                    navController = navController,
+                    viewModel = viewModel // ← Adicionar aqui
+                )
             }
         }
 
-        Spacer(Modifier.height(24.dp))
+        // Seus Grupos
+        Text(
+            text = "Seus Grupos",
+            modifier = Modifier.padding(16.dp),
+            color = Color(0xFF2196F3)
+        )
 
-        Text("Seus grupos", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2196F3))
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        LazyColumn(
+            modifier = Modifier.padding(horizontal = 16.dp)
+        ) {
             items(state.chatsAtivos) { chat ->
-                GrupoAtivoCard(chat, navController, viewModel)
+                GrupoAtivoCard(
+                    chat = chat,
+                    navController = navController,
+                    viewModel = viewModel // ← Adicionar aqui
+                )
             }
         }
     }

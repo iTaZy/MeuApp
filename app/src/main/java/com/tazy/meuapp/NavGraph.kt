@@ -35,8 +35,12 @@ fun NavGraph() {
                 }
             )
         }
-        composable("loginPrimeiraVez") {
-            LoginPrimeiraVez(navController = navController)
+        composable("loginPrimeiraVez?modoEdicao={modoEdicao}") { backStackEntry ->
+            val modoEdicao = backStackEntry.arguments?.getBoolean("modoEdicao") ?: false
+            LoginPrimeiraVez(
+                navController = navController,
+                modoEdicao = modoEdicao
+            )
         }
         composable("telaPrincipal") {
             TelaPrincipal(navController)
