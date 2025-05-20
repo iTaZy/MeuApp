@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "925564812364",
+    "project_id": "meuapp-56352",
+    "storage_bucket": "meuapp-56352.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:925564812364:android:b10f2c9f20fed2eec148e9",
+        "android_client_info": {
+          "package_name": "com.tazy.meuapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDzbjneum1KvDFre-On65OmxEzBVi6eLlU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

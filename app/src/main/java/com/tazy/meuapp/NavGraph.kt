@@ -1,0 +1,52 @@
+package com.tazy.meuapp
+
+import androidx.compose.runtime.Composable
+import androidx.navigation.NavHostController
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+
+@Composable
+fun NavGraph() {
+    val navController = rememberNavController()
+
+    NavHost(navController = navController, startDestination = "login") {
+        composable("login") {
+            LoginScreen(
+                onCriarConta = {
+                    navController.navigate("cadastro")
+                },
+                onLoginSucesso = {
+                    navController.navigate("telaPrincipal") {
+                        popUpTo("login") { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable("cadastro") {
+            CadastroScreen(
+                onCadastroFinalizado = {
+                    navController.popBackStack()
+                },
+                onCadastroPrimeiroLogin = {
+                    navController.navigate("loginPrimeiraVez") {
+                        popUpTo("cadastro") { inclusive = true }
+                    }
+                }
+            )
+        }
+        composable("loginPrimeiraVez") {
+            LoginPrimeiraVez(navController = navController)
+        }
+        composable("telaPrincipal") {
+            TelaPrincipal(navController)
+        }
+        composable("chat/{grupoId}") { backStackEntry ->
+            val grupoId = backStackEntry.arguments?.getString("grupoId") ?: return@composable
+            ChatScreen(navController, grupoId)
+        }
+        composable("criarGrupo") {
+            CriarGrupoScreen(navController)
+        }
+    }
+}
