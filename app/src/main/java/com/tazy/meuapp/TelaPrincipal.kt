@@ -8,7 +8,11 @@ import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ExitToApp
+import androidx.compose.material.icons.filled.People
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.outlined.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -24,7 +28,13 @@ import androidx.navigation.NavController
 @Composable
 fun TelaPrincipal(navController: NavController) {
     val viewModel: TelaPrincipalViewModel = viewModel()
+
     val state by viewModel.state.collectAsState()
+
+    if (state.codigoCondominio.isBlank() && state.carregando) {
+        LoadingState()
+        return
+    }
 
     Scaffold(
         floatingActionButton = {
@@ -32,15 +42,19 @@ fun TelaPrincipal(navController: NavController) {
                 onClick = { navController.navigate("criarGrupo") },
                 containerColor = Color(0xFF2196F3),
                 contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Novo grupo")
-            }
+            ) { Icon(Icons.Default.Add, contentDescription = "Novo grupo") }
         }
     ) { paddingValues ->
-        when {
-            state.carregando -> LoadingState()
-            state.erro != null -> ErrorState(viewModel, state.erro)
-            else -> ContentState(navController, viewModel, state)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues)
+        ) {
+            when {
+                state.carregando -> LoadingState()
+                state.erro != null -> ErrorState(viewModel, state.erro)
+                else -> ContentState(navController, viewModel, state)
+            }
         }
     }
 }
@@ -50,9 +64,7 @@ private fun LoadingState() {
     Box(
         modifier = Modifier.fillMaxSize(),
         contentAlignment = Alignment.Center
-    ) {
-        CircularProgressIndicator(color = Color(0xFF2196F3))
-    }
+    ) { CircularProgressIndicator(color = Color(0xFF2196F3)) }
 }
 
 @Composable
@@ -63,10 +75,8 @@ private fun ErrorState(viewModel: TelaPrincipalViewModel, error: String?) {
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Erro: $error", color = Color.Red)
-            Spacer(modifier = Modifier.height(8.dp))
-            Button(onClick = { viewModel.atualizarDados() }) {
-                Text("Tentar novamente")
-            }
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = { viewModel.atualizarDados() }) { Text("Tentar novamente") }
         }
     }
 }
@@ -78,62 +88,47 @@ private fun ContentState(
     state: TelaPrincipalState
 ) {
     Column(
-        modifier = Modifier
+        Modifier
             .fillMaxSize()
             .background(Color.White)
             .padding(16.dp)
     ) {
-        // Header
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                "Olá, ${state.nomeUsuario}!",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color(0xFF2196F3)
-            )
+            Column {
+                Text(
+                    "Olá, ${state.nomeUsuario}!",
+                    fontSize = 20.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color(0xFF2196F3)
+                )
+                Text(
+                    "Condomínio: ${state.codigoCondominio}",
+                    fontSize = 14.sp,
+                    color = Color.Gray
+                )
+            }
             IconButton(onClick = { viewModel.atualizarDados() }) {
                 Icon(Icons.Default.Refresh, contentDescription = "Atualizar")
             }
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
+        Spacer(Modifier.height(16.dp))
 
-        // Grupos recomendados
-        Text(
-            "Grupos recomendados",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF2196F3),
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        LazyRow(
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            contentPadding = PaddingValues(vertical = 8.dp)
-        ) {
+        Text("Grupos recomendados", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2196F3))
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp), contentPadding = PaddingValues(vertical = 8.dp)) {
             items(state.gruposRecomendados) { grupo ->
                 GrupoRecomendadoCard(grupo, navController, viewModel)
             }
         }
 
-        Spacer(modifier = Modifier.height(24.dp))
+        Spacer(Modifier.height(24.dp))
 
-        // Seus grupos
-        Text(
-            "Seus grupos",
-            fontSize = 18.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color(0xFF2196F3),
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-
-        LazyColumn(
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        Text("Seus grupos", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = Color(0xFF2196F3))
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             items(state.chatsAtivos) { chat ->
                 GrupoAtivoCard(chat, navController, viewModel)
             }
@@ -148,92 +143,46 @@ fun GrupoRecomendadoCard(
     viewModel: TelaPrincipalViewModel
 ) {
     var showDialog by remember { mutableStateOf(false) }
-
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Entrar no grupo") },
             text = { Text("Deseja entrar no grupo ${grupo.nome}?") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.entrarNoGrupo(grupo.id)
-                        showDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF2196F3)
-                    )
-                ) {
-                    Text("Confirmar")
-                }
+                Button(onClick = {
+                    viewModel.entrarNoGrupo(grupo.id)
+                    showDialog = false
+                }) { Text("Confirmar") }
             },
-            dismissButton = {
-                TextButton(
-                    onClick = { showDialog = false }
-                ) {
-                    Text("Cancelar")
-                }
-            }
+            dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Cancelar") } }
         )
     }
-
     Card(
-        modifier = Modifier
-            .width(280.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFB3E5FC)
-        ),
+        Modifier.width(280.dp),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFB3E5FC)),
         elevation = CardDefaults.cardElevation(4.dp),
         shape = RoundedCornerShape(16.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(Modifier.padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    grupo.nome,
+                    text = grupo.nome,
+                    modifier = Modifier.weight(1f),
                     fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.weight(1f)
+                    fontWeight = FontWeight.Bold
                 )
-                RatingBar(rating = grupo.relevancia)
+                RatingBar(grupo.relevancia)
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Text(
-                grupo.descricao,
-                fontSize = 14.sp,
-                color = Color.DarkGray,
-                maxLines = 2
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
+            Spacer(Modifier.height(8.dp))
+            Text(grupo.descricao, fontSize = 14.sp, color = Color.DarkGray, maxLines = 2)
+            Spacer(Modifier.height(12.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Default.People,
-                    contentDescription = "Membros",
-                    tint = Color(0xFF2196F3),
-                    modifier = Modifier.size(16.dp)
-                )
-                Text(
-                    "${grupo.membrosCount} membros",
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(start = 4.dp)
-                )
+                Icon(Icons.Default.People, contentDescription = null, modifier = Modifier.size(16.dp), tint = Color(0xFF2196F3))
+                Spacer(Modifier.width(4.dp))
+                Text("${grupo.membrosCount} membros", fontSize = 12.sp, color = Color.Gray)
             }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Button(
-                onClick = { showDialog = true },
-                modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2196F3)
-                )
-            ) {
-                Text("Entrar no grupo", color = Color.White)
-            }
+            Spacer(Modifier.height(8.dp))
+            Button(onClick = { showDialog = true }, Modifier.fillMaxWidth()) { Text("Entrar no grupo") }
         }
     }
 }
@@ -245,87 +194,39 @@ fun GrupoAtivoCard(
     viewModel: TelaPrincipalViewModel
 ) {
     var showDialog by remember { mutableStateOf(false) }
-
     if (showDialog) {
         AlertDialog(
             onDismissRequest = { showDialog = false },
             title = { Text("Sair do grupo") },
-            text = { Text("Deseja realmente sair do grupo ${chat.nome}?") },
+            text = { Text("Deseja sair do grupo ${chat.nome}?") },
             confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.sairDoGrupo(chat.id)
-                        showDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Red
-                    )
-                ) {
-                    Text("Sair")
-                }
+                Button(onClick = {
+                    viewModel.sairDoGrupo(chat.id)
+                    showDialog = false
+                }) { Text("Sair" ) }
             },
-            dismissButton = {
-                TextButton(
-                    onClick = { showDialog = false }
-                ) {
-                    Text("Cancelar")
-                }
-            }
+            dismissButton = { TextButton(onClick = { showDialog = false }) { Text("Cancelar") } }
         )
     }
-
     Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFB3E5FC)
-        ),
+        Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = Color(0xFFB3E5FC)),
         elevation = CardDefaults.cardElevation(2.dp),
         shape = RoundedCornerShape(12.dp)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clickable { navController.navigate("chat/${chat.id}") }
-            ) {
-                Text(
-                    chat.nome,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    chat.ultimaMensagem,
-                    fontSize = 14.sp,
-                    color = Color.Gray,
-                    maxLines = 1
-                )
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f).clickable { navController.navigate("chat/${chat.id}") }) {
+                Text(chat.nome, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                Text(chat.ultimaMensagem, fontSize = 14.sp, color = Color.Gray, maxLines = 1)
             }
-
-            if (chat.mensagensNaoLidas > 0) {
-                Badge(
-                    containerColor = Color(0xFF2196F3),
-                    contentColor = Color.White,
-                    modifier = Modifier.padding(end = 8.dp)
-                ) {
-                    Text(chat.mensagensNaoLidas.toString())
-                }
+            Badge(Modifier.padding(end = 8.dp), containerColor = Color(0xFF2196F3)) {
+                Text(chat.mensagensNaoLidas.toString(), color = Color.White)
             }
-
-            IconButton(
-                onClick = { showDialog = true }
-            ) {
-                Icon(
-                    Icons.Default.ExitToApp,
-                    contentDescription = "Sair do grupo",
-                    tint = Color.Red
-                )
-            }
+            IconButton(onClick = { showDialog = true }) { Icon(Icons.Default.ExitToApp, contentDescription = "") }
         }
     }
 }
+
 
 @Composable
 fun RatingBar(rating: Int) {
@@ -333,9 +234,9 @@ fun RatingBar(rating: Int) {
         repeat(5) { index ->
             Icon(
                 imageVector = if (index < rating) Icons.Filled.Star else Icons.Outlined.Star,
-                contentDescription = "Rating",
-                tint = if (index < rating) Color(0xFFFFC107) else Color.LightGray,
-                modifier = Modifier.size(16.dp)
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = if (index < rating) Color(0xFFFFC107) else Color.LightGray
             )
         }
     }

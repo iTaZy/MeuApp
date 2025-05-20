@@ -184,6 +184,19 @@ private fun criarGrupo(
 
     scope.launch {
         try {
+            // Buscar o código do condomínio do usuário no Firestore
+            val usuarioDoc = firestore.collection("usuarios")
+                .document(usuarioAtual.uid)
+                .get()
+                .await()
+
+            val codigoCondominio = usuarioDoc.getString("codigoCondominio")
+                ?: run {
+                    onError("Código do condomínio não encontrado para o usuário")
+                    onLoading(false)
+                    return@launch
+                }
+
             val grupoData = hashMapOf(
                 "nome" to nomeGrupo,
                 "descricao" to descricao,
@@ -194,7 +207,8 @@ private fun criarGrupo(
                 "relevancia" to 3,
                 "ultimaMensagem" to "",
                 "mensagensNaoLidas" to 0,
-                "dataCriacao" to FieldValue.serverTimestamp()
+                "dataCriacao" to FieldValue.serverTimestamp(),
+                "codigoCondominio" to codigoCondominio  // <-- adiciona aqui
             )
 
             val docRef = firestore.collection("grupos").document()

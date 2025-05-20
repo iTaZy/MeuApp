@@ -1,5 +1,7 @@
+// TelaPrincipalViewModel.kt
 package com.tazy.meuapp
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
@@ -14,6 +16,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+
 class TelaPrincipalViewModel : ViewModel() {
 
     private val _state = MutableStateFlow(TelaPrincipalState())
@@ -27,83 +30,114 @@ class TelaPrincipalViewModel : ViewModel() {
     private val viewModelScope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     init {
+        inicializar()
+    }
+
+    private fun inicializar() = viewModelScope.launch {
+        _state.value = _state.value.copy(carregando = true)
+
+        val uid = auth.currentUser?.uid ?: run {
+            _state.value = _state.value.copy(erro = "Usuário não autenticado", carregando = false)
+            return@launch
+        }
+
+        val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
+        val nome = usuarioDoc.getString("nome") ?: ""
+        val meusGrupos = usuarioDoc.get("grupos") as? List<String> ?: emptyList()
+        val interesses = usuarioDoc.get("interesses") as? List<String> ?: emptyList()
+        val meuCodigo = usuarioDoc.getString("codigoCondominio") ?: ""
+
+        _state.value = _state.value.copy(
+            nomeUsuario = nome,
+            codigoCondominio = meuCodigo
+        )
+
         observarUsuario()
-        carregarGruposAtivos()
-        carregarGruposRecomendados()
+        carregarGruposAtivos(meuCodigo, uid)
+        carregarGruposRecomendados(meuCodigo, meusGrupos, interesses)
+
+        _state.value = _state.value.copy(carregando = false)
     }
 
     fun atualizarDados() {
-        carregarGruposAtivos()
-        carregarGruposRecomendados()
+        val current = _state.value
+        viewModelScope.launch {
+            _state.value = current.copy(carregando = true)
+            val uid = auth.currentUser?.uid.orEmpty()
+            val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
+            carregarGruposAtivos(current.codigoCondominio, uid)
+            carregarGruposRecomendados(
+                current.codigoCondominio,
+                usuarioDoc.get("grupos") as? List<String> ?: emptyList(),
+                usuarioDoc.get("interesses") as? List<String> ?: emptyList()
+            )
+            _state.value = _state.value.copy(carregando = false)
+        }
     }
 
     private fun observarUsuario() {
-        val uid = auth.currentUser?.uid ?: run {
-            _state.value = _state.value.copy(erro = "Usuário não autenticado")
-            return
-        }
-
+        val uid = auth.currentUser?.uid ?: return
         usuarioListener = firestore.collection("usuarios").document(uid)
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    _state.value = _state.value.copy(erro = error.message)
+            .addSnapshotListener { snap, err ->
+                if (err != null) {
+                    _state.value = _state.value.copy(erro = err.message)
                     return@addSnapshotListener
                 }
-                snapshot?.getString("nome")?.let { nome ->
+                snap?.getString("nome")?.let { nome ->
                     _state.value = _state.value.copy(nomeUsuario = nome)
                 }
             }
     }
 
-    private fun carregarGruposAtivos() {
-        val uid = auth.currentUser?.uid ?: return
-
+    private fun carregarGruposAtivos(codigoCondominio: String, uid: String) {
         gruposListener?.remove()
         gruposListener = firestore.collection("grupos")
+            .whereEqualTo("codigoCondominio", codigoCondominio)
             .whereArrayContains("participantes", uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     _state.value = _state.value.copy(erro = error.message)
                     return@addSnapshotListener
                 }
-
-                val chats = snapshot?.documents?.mapNotNull { doc ->
-                    Chat(
-                        id = doc.id,
-                        nome = doc.getString("nome") ?: return@mapNotNull null,
-                        ultimaMensagem = doc.getString("ultimaMensagem") ?: "",
-                        mensagensNaoLidas = (doc.getLong("mensagensNaoLidas") ?: 0).toInt()
-                    )
-                }?.distinctBy { it.id } ?: emptyList()
+                val chats = snapshot?.documents
+                    ?.mapNotNull { doc ->
+                        Chat(
+                            id = doc.id,
+                            nome = doc.getString("nome") ?: return@mapNotNull null,
+                            ultimaMensagem = doc.getString("ultimaMensagem") ?: "",
+                            mensagensNaoLidas = (doc.getLong("mensagensNaoLidas") ?: 0).toInt()
+                        )
+                    }?.distinctBy { it.id } ?: emptyList()
 
                 _state.value = _state.value.copy(chatsAtivos = chats)
             }
     }
 
-    fun carregarGruposRecomendados() = viewModelScope.launch {
+    private fun carregarGruposRecomendados(
+        codigoCondominio: String,
+        gruposUsuario: List<String>,
+        interesses: List<String>
+    ) = viewModelScope.launch {
         _state.value = _state.value.copy(carregando = true)
         try {
-            val userId = auth.currentUser?.uid ?: run {
-                _state.value = _state.value.copy(erro = "Usuário não autenticado", carregando = false)
-                return@launch
-            }
+            println("Buscando grupos com código: $codigoCondominio e interesses: $interesses")
 
-            val usuarioDoc = firestore.collection("usuarios").document(userId).get().await()
-            val gruposUsuario = usuarioDoc.get("grupos") as? List<String> ?: emptyList()
-            val interesses = usuarioDoc.get("interesses") as? List<String> ?: emptyList()
-
-            // Consulta aprimorada usando múltiplos interesses
-            val baseQuery = if (interesses.isNotEmpty()) {
+            val docs = if (interesses.isNotEmpty()) {
                 firestore.collection("grupos")
+                    .whereEqualTo("codigoCondominio", codigoCondominio)
                     .whereArrayContainsAny("interesses", interesses.take(10))
-                    .limit(10)
+                    .get()
+                    .await()
             } else {
                 firestore.collection("grupos")
+                    .whereEqualTo("codigoCondominio", codigoCondominio)
                     .orderBy("membrosCount", Query.Direction.DESCENDING)
                     .limit(10)
+                    .get()
+                    .await()
             }
 
-            val grupos = baseQuery.get().await().documents
+            val grupos = docs.documents
                 .filter { doc -> !gruposUsuario.contains(doc.id) }
                 .mapNotNull { doc ->
                     GrupoRecomendado(
@@ -115,12 +149,13 @@ class TelaPrincipalViewModel : ViewModel() {
                     )
                 }
 
+            println("Encontrados ${grupos.size} grupos recomendados")
+
             _state.value = _state.value.copy(
                 gruposRecomendados = grupos,
                 carregando = false,
                 erro = null
             )
-
         } catch (e: Exception) {
             _state.value = _state.value.copy(
                 erro = "Erro ao carregar grupos: ${e.message}",
@@ -132,29 +167,31 @@ class TelaPrincipalViewModel : ViewModel() {
     fun entrarNoGrupo(grupoId: String) = viewModelScope.launch {
         _state.value = _state.value.copy(carregando = true)
         try {
-            val userId = auth.currentUser?.uid ?: throw Exception("Usuário não autenticado")
+            val uid = auth.currentUser?.uid ?: throw Exception("Usuário não autenticado")
 
-            // Feedback imediato
             _state.value = _state.value.copy(
                 gruposRecomendados = _state.value.gruposRecomendados.filter { it.id != grupoId }
             )
 
             val batch = firestore.batch()
-            val grupoRef = firestore.collection("grupos").document(grupoId)
-            batch.update(grupoRef,
-                "participantes", FieldValue.arrayUnion(userId),
+            val gRef = firestore.collection("grupos").document(grupoId)
+            batch.update(gRef,
+                "participantes", FieldValue.arrayUnion(uid),
                 "membrosCount", FieldValue.increment(1)
             )
-            val usuarioRef = firestore.collection("usuarios").document(userId)
-            batch.update(usuarioRef,
+            val uRef = firestore.collection("usuarios").document(uid)
+            batch.update(uRef,
                 "grupos", FieldValue.arrayUnion(grupoId)
             )
             batch.commit().await()
 
-            // Atualiza recomendações após entrar
-            carregarGruposRecomendados()
+            val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
+            carregarGruposRecomendados(
+                _state.value.codigoCondominio,
+                usuarioDoc.get("grupos") as? List<String> ?: emptyList(),
+                usuarioDoc.get("interesses") as? List<String> ?: emptyList()
+            )
             _state.value = _state.value.copy(carregando = false)
-
         } catch (e: Exception) {
             _state.value = _state.value.copy(
                 erro = "Erro ao entrar no grupo: ${e.message}",
@@ -166,24 +203,27 @@ class TelaPrincipalViewModel : ViewModel() {
     fun sairDoGrupo(grupoId: String) = viewModelScope.launch {
         _state.value = _state.value.copy(carregando = true)
         try {
-            val userId = auth.currentUser?.uid ?: return@launch
+            val uid = auth.currentUser?.uid ?: return@launch
 
             val batch = firestore.batch()
-            val grupoRef = firestore.collection("grupos").document(grupoId)
-            batch.update(grupoRef,
-                "participantes", FieldValue.arrayRemove(userId),
+            val gRef = firestore.collection("grupos").document(grupoId)
+            batch.update(gRef,
+                "participantes", FieldValue.arrayRemove(uid),
                 "membrosCount", FieldValue.increment(-1)
             )
-            val usuarioRef = firestore.collection("usuarios").document(userId)
-            batch.update(usuarioRef,
+            val uRef = firestore.collection("usuarios").document(uid)
+            batch.update(uRef,
                 "grupos", FieldValue.arrayRemove(grupoId)
             )
             batch.commit().await()
 
-            // Recarrega recomendações após sair
-            carregarGruposRecomendados()
+            val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
+            carregarGruposRecomendados(
+                _state.value.codigoCondominio,
+                usuarioDoc.get("grupos") as? List<String> ?: emptyList(),
+                usuarioDoc.get("interesses") as? List<String> ?: emptyList()
+            )
             _state.value = _state.value.copy(carregando = false)
-
         } catch (e: Exception) {
             _state.value = _state.value.copy(
                 erro = "Erro ao sair do grupo: ${e.message}",
@@ -191,7 +231,6 @@ class TelaPrincipalViewModel : ViewModel() {
             )
         }
     }
-
     override fun onCleared() {
         super.onCleared()
         usuarioListener?.remove()
