@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -40,7 +43,23 @@ fun LoginPrimeiraVez(
     val interessesSelecionados = remember { mutableStateListOf<String>() }
     var erro by remember { mutableStateOf("") }
 
-    // Carregar dados existentes se for edição
+    // Cores e ícones
+    val azul = Color(0xFF2196F3)
+
+    val icones: Map<String, ImageVector> = mapOf(
+        "Esportes" to Icons.Default.SportsSoccer,
+        "Leitura" to Icons.Default.MenuBook,
+        "Música" to Icons.Default.MusicNote,
+        "Filmes" to Icons.Default.Movie,
+        "Viagens" to Icons.Default.Flight,
+        "Culinária" to Icons.Default.RestaurantMenu,
+        "Tecnologia" to Icons.Default.Devices,
+        "Jogos" to Icons.Default.SportsEsports,
+        "Arte" to Icons.Default.Brush,
+        "Fotografia" to Icons.Default.PhotoCamera
+    )
+
+    // Carregar dados existentes
     LaunchedEffect(Unit) {
         if (modoEdicao && currentUser != null) {
             firestore.collection("usuarios")
@@ -56,22 +75,6 @@ fun LoginPrimeiraVez(
                 }
         }
     }
-
-    val azul = Color(0xFF2196F3)
-
-    // Mapa de ícones (emoji) por interesse
-    val icones = mapOf(
-        "Esportes" to "🏅",
-        "Leitura" to "📚",
-        "Música" to "🎵",
-        "Filmes" to "🎬",
-        "Viagens" to "✈️",
-        "Culinária" to "🍽️",
-        "Tecnologia" to "💻",
-        "Jogos" to "🎮",
-        "Arte" to "🎨",
-        "Fotografia" to "📷"
-    )
 
     Column(
         modifier = Modifier
@@ -117,7 +120,7 @@ fun LoginPrimeiraVez(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Caixa branca com sombra para os interesses
+            // Caixa com sombra para os interesses
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -129,7 +132,7 @@ fun LoginPrimeiraVez(
                     items(interessesLista.size) { index ->
                         val interesse = interessesLista[index]
                         val isSelecionado = interessesSelecionados.contains(interesse)
-                        val icone = icones[interesse] ?: "🔘"
+                        val icone = icones[interesse] ?: Icons.Default.Star
 
                         val offset by animateDpAsState(
                             targetValue = if (isSelecionado) 32.dp else 0.dp,
@@ -150,14 +153,22 @@ fun LoginPrimeiraVez(
                                     }
                                 )
                         ) {
-                            // Texto com ícone
+                            Icon(
+                                imageVector = icone,
+                                contentDescription = interesse,
+                                tint = if (isSelecionado) azul else Color.Black,
+                                modifier = Modifier
+                                    .size(28.dp)
+                                    .padding(end = 12.dp)
+                            )
+
                             Text(
-                                text = "$icone  $interesse",
+                                text = interesse,
                                 fontSize = 16.sp,
                                 modifier = Modifier.weight(1f)
                             )
 
-                            // Switch deslizante
+                            // Switch
                             Box(
                                 modifier = Modifier
                                     .width(64.dp)
