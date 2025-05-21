@@ -59,6 +59,20 @@ fun LoginPrimeiraVez(
 
     val azul = Color(0xFF2196F3)
 
+    // Mapa de ícones (emoji) por interesse
+    val icones = mapOf(
+        "Esportes" to "🏅",
+        "Leitura" to "📚",
+        "Música" to "🎵",
+        "Filmes" to "🎬",
+        "Viagens" to "✈️",
+        "Culinária" to "🍽️",
+        "Tecnologia" to "💻",
+        "Jogos" to "🎮",
+        "Arte" to "🎨",
+        "Fotografia" to "📷"
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -79,11 +93,11 @@ fun LoginPrimeiraVez(
             )
         }
 
-        Column(modifier = Modifier
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .fillMaxSize()
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .fillMaxSize()
         ) {
-
             OutlinedTextField(
                 value = bio,
                 onValueChange = { bio = it },
@@ -103,7 +117,7 @@ fun LoginPrimeiraVez(
                 modifier = Modifier.padding(bottom = 8.dp)
             )
 
-            // Caixa com sombra para os interesses
+            // Caixa branca com sombra para os interesses
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -115,6 +129,7 @@ fun LoginPrimeiraVez(
                     items(interessesLista.size) { index ->
                         val interesse = interessesLista[index]
                         val isSelecionado = interessesSelecionados.contains(interesse)
+                        val icone = icones[interesse] ?: "🔘"
 
                         val offset by animateDpAsState(
                             targetValue = if (isSelecionado) 32.dp else 0.dp,
@@ -135,7 +150,14 @@ fun LoginPrimeiraVez(
                                     }
                                 )
                         ) {
-                            // Trilha do switch
+                            // Texto com ícone
+                            Text(
+                                text = "$icone  $interesse",
+                                fontSize = 16.sp,
+                                modifier = Modifier.weight(1f)
+                            )
+
+                            // Switch deslizante
                             Box(
                                 modifier = Modifier
                                     .width(64.dp)
@@ -154,14 +176,6 @@ fun LoginPrimeiraVez(
                                         .border(2.dp, azul, CircleShape)
                                 )
                             }
-
-                            Spacer(modifier = Modifier.width(16.dp))
-
-                            Text(
-                                text = interesse,
-                                fontSize = 16.sp,
-                                color = Color.Black
-                            )
                         }
                     }
                 }
