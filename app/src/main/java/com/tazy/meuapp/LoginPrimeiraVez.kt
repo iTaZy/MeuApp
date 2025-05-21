@@ -1,34 +1,20 @@
 package com.tazy.meuapp
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateListOf
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,127 +57,166 @@ fun LoginPrimeiraVez(
         }
     }
 
+    val azul = Color(0xFF2196F3)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
+            .background(Color.White)
     ) {
-        Text(
-            text = if (modoEdicao) "Editar Perfil" else "Complete seu perfil",
-            fontSize = 24.sp,
-            modifier = Modifier.padding(bottom = 16.dp)
-        )
-
-        OutlinedTextField(
-            value = bio,
-            onValueChange = { bio = it },
-            label = { Text("Bio") },
+        // Cabeçalho azul
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(120.dp)
-        )
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text("Selecione seus interesses:", fontSize = 18.sp)
-
-        LazyColumn(modifier = Modifier.weight(1f)) {
-            items(interessesLista.size) { index ->
-                val interesse = interessesLista[index]
-                val isSelecionado = interessesSelecionados.contains(interesse)
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                        .padding(vertical = 4.dp)
-                        .clip(RoundedCornerShape(25.dp))
-                        .background(if (isSelecionado) Color(0xFF2196F3) else Color.White)
-                        .border(
-                            width = 1.dp,
-                            color = Color(0xFF2196F3),
-                            shape = RoundedCornerShape(25.dp)
-                        )
-                        .toggleable(
-                            value = isSelecionado,
-                            onValueChange = {
-                                if (it) interessesSelecionados.add(interesse)
-                                else interessesSelecionados.remove(interesse)
-                            }
-                        ),
-                    contentAlignment = Alignment.CenterStart
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 16.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(24.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isSelecionado) Color.White else Color(0xFF2196F3)
-                                )
-                                .border(
-                                    width = 2.dp,
-                                    color = if (isSelecionado) Color(0xFF2196F3) else Color.White,
-                                    shape = CircleShape
-                                )
-                        )
-                        Spacer(modifier = Modifier.width(16.dp))
-                        Text(
-                            text = interesse,
-                            color = if (isSelecionado) Color.White else Color.Black,
-                            fontSize = 16.sp
-                        )
-                    }
-                }
-            }
-        }
-
-        if (erro.isNotEmpty()) {
+                .background(azul)
+                .padding(vertical = 24.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Text(
-                text = erro,
-                color = Color.Red,
-                modifier = Modifier.padding(bottom = 8.dp)
+                text = if (modoEdicao) "Editar Perfil" else "Complete seu perfil",
+                fontSize = 22.sp,
+                color = Color.White
             )
         }
 
-        Button(
-            onClick = {
-                if (currentUser == null) {
-                    erro = "Usuário não autenticado"
-                    return@Button
-                }
+        Column(modifier = Modifier
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .fillMaxSize()
+        ) {
 
-                val dados = hashMapOf(
-                    "bio" to bio,
-                    "interesses" to interessesSelecionados.toList()
-                )
+            OutlinedTextField(
+                value = bio,
+                onValueChange = { bio = it },
+                label = { Text("Bio") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(120.dp),
+                shape = RoundedCornerShape(8.dp)
+            )
 
-                firestore.collection("usuarios")
-                    .document(currentUser.uid)
-                    .set(dados, SetOptions.merge())
-                    .addOnSuccessListener {
-                        if (modoEdicao) {
-                            navController.popBackStack()
-                        } else {
-                            navController.navigate("telaPrincipal") {
-                                popUpTo("loginPrimeiraVez") { inclusive = true }
+            Spacer(modifier = Modifier.height(20.dp))
+
+            Text(
+                "Selecione seus interesses:",
+                fontSize = 18.sp,
+                color = Color.Black,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+
+            // Caixa com sombra para os interesses
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .shadow(4.dp, RoundedCornerShape(12.dp))
+                    .background(Color.White, RoundedCornerShape(12.dp))
+                    .padding(12.dp)
+            ) {
+                LazyColumn {
+                    items(interessesLista.size) { index ->
+                        val interesse = interessesLista[index]
+                        val isSelecionado = interessesSelecionados.contains(interesse)
+
+                        val offset by animateDpAsState(
+                            targetValue = if (isSelecionado) 32.dp else 0.dp,
+                            animationSpec = tween(durationMillis = 250),
+                            label = "offsetAnim"
+                        )
+
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp)
+                                .toggleable(
+                                    value = isSelecionado,
+                                    onValueChange = {
+                                        if (it) interessesSelecionados.add(interesse)
+                                        else interessesSelecionados.remove(interesse)
+                                    }
+                                )
+                        ) {
+                            // Trilha do switch
+                            Box(
+                                modifier = Modifier
+                                    .width(64.dp)
+                                    .height(32.dp)
+                                    .clip(RoundedCornerShape(50))
+                                    .background(if (isSelecionado) azul else Color.White)
+                                    .border(2.dp, azul, RoundedCornerShape(50))
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .offset(x = offset)
+                                        .padding(4.dp)
+                                        .size(24.dp)
+                                        .clip(CircleShape)
+                                        .background(Color.White)
+                                        .border(2.dp, azul, CircleShape)
+                                )
                             }
+
+                            Spacer(modifier = Modifier.width(16.dp))
+
+                            Text(
+                                text = interesse,
+                                fontSize = 16.sp,
+                                color = Color.Black
+                            )
                         }
                     }
-                    .addOnFailureListener {
-                        erro = "Erro ao salvar alterações"
+                }
+            }
+
+            if (erro.isNotEmpty()) {
+                Text(
+                    text = erro,
+                    color = Color.Red,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = {
+                    if (currentUser == null) {
+                        erro = "Usuário não autenticado"
+                        return@Button
                     }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 16.dp)
-        ) {
-            Text(if (modoEdicao) "Salvar Alterações" else "Finalizar Cadastro")
+
+                    val dados = hashMapOf(
+                        "bio" to bio,
+                        "interesses" to interessesSelecionados.toList()
+                    )
+
+                    firestore.collection("usuarios")
+                        .document(currentUser.uid)
+                        .set(dados, SetOptions.merge())
+                        .addOnSuccessListener {
+                            if (modoEdicao) {
+                                navController.popBackStack()
+                            } else {
+                                navController.navigate("telaPrincipal") {
+                                    popUpTo("loginPrimeiraVez") { inclusive = true }
+                                }
+                            }
+                        }
+                        .addOnFailureListener {
+                            erro = "Erro ao salvar alterações"
+                        }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                shape = RoundedCornerShape(25.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = azul)
+            ) {
+                Text(
+                    text = if (modoEdicao) "Salvar Alterações" else "Finalizar Cadastro",
+                    color = Color.White,
+                    fontSize = 16.sp
+                )
+            }
         }
     }
 }
