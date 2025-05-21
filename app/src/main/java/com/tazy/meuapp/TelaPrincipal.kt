@@ -147,19 +147,20 @@ private fun ContentState(
 
         // Seus Grupos
         Text(
-            text = "Seus Grupos",
+            text = "Meus Grupos",
             modifier = Modifier.padding(16.dp),
             color = Color(0xFF2196F3)
         )
 
         LazyColumn(
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier.padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp) // ← espaçamento de 8dp entre os grupos
         ) {
             items(state.chatsAtivos) { chat ->
                 GrupoAtivoCard(
                     chat = chat,
                     navController = navController,
-                    viewModel = viewModel // ← Adicionar aqui
+                    viewModel = viewModel
                 )
             }
         }

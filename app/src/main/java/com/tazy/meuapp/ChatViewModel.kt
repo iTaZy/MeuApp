@@ -1,11 +1,14 @@
 package com.tazy.meuapp
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Query
+import com.google.firebase.firestore.Source
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -18,12 +21,9 @@ class ChatViewModel : ViewModel() {
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
     private var mensagensListener: ListenerRegistration? = null
-
-    // Nome do usuário logado, obtido do Firestore
     private var nomeUsuarioLogado: String = "Anônimo"
 
     init {
-        // Carrega o nome do usuário apenas uma vez
         viewModelScope.launch {
             auth.currentUser?.uid?.let { uid ->
                 try {
@@ -83,7 +83,6 @@ class ChatViewModel : ViewModel() {
     fun enviarMensagem(grupoId: String, texto: String) = viewModelScope.launch {
         val uid = auth.currentUser?.uid ?: return@launch
 
-        // Garante que nomeUsuarioLogado esteja carregado
         if (nomeUsuarioLogado.isBlank()) {
             try {
                 val doc = firestore.collection("usuarios").document(uid).get().await()
@@ -109,6 +108,42 @@ class ChatViewModel : ViewModel() {
             }
     }
 
+    data class Participante(val id: String, val nome: String)
+
+    fun carregarParticipantes(grupoId: String, onResultado: (List<Participante>) -> Unit) {
+        viewModelScope.launch {
+            try {
+                // 1. Primeiro busca o grupo para verificar se o usuário é participante
+                val grupoDoc = firestore.collection("grupos").document(grupoId)
+                    .get(Source.SERVER)
+                    .await()
+
+                val participantesIds = grupoDoc.get("participantes") as? List<String> ?: emptyList()
+
+                // 2. Verifica se o usuário atual tem permissão
+                val currentUser = auth.currentUser?.uid
+                if (currentUser !in participantesIds) {
+                    throw Exception("Usuário não é membro deste grupo")
+                }
+
+                // 3. Busca os dados mínimos necessários dos usuários
+                val participantes = participantesIds.map { userId ->
+                    val userDoc = firestore.collection("usuarios").document(userId)
+                        .get(Source.SERVER)
+                        .await()
+                    Participante(
+                        id = userId,
+                        nome = userDoc.getString("nome") ?: "Usuário ${userId.take(4)}"
+                    )
+                }
+
+                onResultado(participantes)
+            } catch (e: Exception) {
+                Log.e("ChatViewModel", "Erro ao carregar participantes", e)
+                onResultado(emptyList())
+            }
+        }
+    }
     override fun onCleared() {
         super.onCleared()
         mensagensListener?.remove()

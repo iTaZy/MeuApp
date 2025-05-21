@@ -10,6 +10,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
+import com.tazy.meuapp.ChatViewModel.Participante
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
@@ -35,6 +37,9 @@ fun ChatScreen(
     viewModel: ChatViewModel = viewModel()
 ) {
     var nomeGrupo by remember { mutableStateOf("") }
+    var mostrarParticipantes by remember { mutableStateOf(false) } // DECLARAÇÃO CORRIGIDA
+    var listaParticipantes by remember { mutableStateOf<List<Participante>>(emptyList()) }
+    var carregandoParticipantes by remember { mutableStateOf(false) }
 
     LaunchedEffect(grupoId) {
         viewModel.carregarDadosGrupo(grupoId) { nome ->
@@ -62,6 +67,18 @@ fun ChatScreen(
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Voltar", tint = Color.White)
+                    }
+                },
+                actions = {
+                    IconButton(onClick = {
+                        carregandoParticipantes = true
+                        viewModel.carregarParticipantes(grupoId) { lista ->
+                            listaParticipantes = lista
+                            mostrarParticipantes = true
+                            carregandoParticipantes = false
+                        }
+                    }) {
+                        Icon(Icons.Default.Info, contentDescription = "Ver participantes", tint = Color.White)
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF2196F3))
@@ -100,7 +117,7 @@ fun ChatScreen(
                             if (!isUser) Text(msg.remetenteNome, fontSize = 12.sp, color = Color(0xFF37474F))
                             Text(msg.texto, fontSize = 16.sp, color = Color.Black)
                             Text(
-                                text = formatarHora(msg.timestamp), // Chamada corrigida
+                                text = formatarHora(msg.timestamp),
                                 fontSize = 10.sp,
                                 color = Color.Gray,
                                 modifier = Modifier.align(Alignment.End)
@@ -152,10 +169,42 @@ fun ChatScreen(
             }
         }
     }
+
+    // Dialog de Participantes
+    if (mostrarParticipantes) {
+        AlertDialog(
+            onDismissRequest = { mostrarParticipantes = false },
+            title = { Text("Participantes (${listaParticipantes.size})") },
+            text = {
+                if (carregandoParticipantes) {
+                    Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator()
+                        Spacer(Modifier.height(16.dp))
+                        Text("Carregando participantes...")
+                    }
+                } else {
+                    LazyColumn {
+                        items(listaParticipantes) { participante ->
+                            Text(
+                                text = "• ${participante.nome}",
+                                modifier = Modifier.padding(vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { mostrarParticipantes = false }) {
+                    Text("Fechar")
+                }
+            }
+        )
+    }
 }
 
-// Função movida para dentro do arquivo
 private fun formatarHora(timestamp: Long): String {
     val sdf = SimpleDateFormat("HH:mm", Locale.getDefault())
     return sdf.format(Date(timestamp))
-}
+    }
+
+
