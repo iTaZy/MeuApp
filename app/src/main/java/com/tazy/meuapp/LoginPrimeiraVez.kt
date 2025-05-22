@@ -221,7 +221,7 @@ fun LoginPrimeiraVez(
                             if (modoEdicao) {
                                 navController.popBackStack()
                             } else {
-                                navController.navigate("telaPrincipal") {
+                                navController.navigate("lobbyPrincipal") {
                                     popUpTo("loginPrimeiraVez") { inclusive = true }
                                 }
                             }

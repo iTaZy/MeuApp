@@ -17,12 +17,13 @@ fun NavGraph() {
                     navController.navigate("cadastro")
                 },
                 onLoginSucesso = {
-                    navController.navigate("telaPrincipal") {
+                    navController.navigate("lobbyPrincipal") {
                         popUpTo("login") { inclusive = true }
                     }
                 }
             )
         }
+
         composable("cadastro") {
             CadastroScreen(
                 onCadastroFinalizado = {
@@ -35,22 +36,30 @@ fun NavGraph() {
                 }
             )
         }
-        composable("loginPrimeiraVez?modoEdicao={modoEdicao}") { backStackEntry ->
-            val modoEdicao = backStackEntry.arguments?.getBoolean("modoEdicao") ?: false
-            LoginPrimeiraVez(
-                navController = navController,
-                modoEdicao = modoEdicao
-            )
+
+        composable("loginPrimeiraVez") {
+            LoginPrimeiraVez(navController = navController, modoEdicao = false)
         }
-        composable("telaPrincipal") {
+
+        composable("loginPrimeiraVez/editar") {
+            LoginPrimeiraVez(navController = navController, modoEdicao = true)
+        }
+
+        composable("telaPrincipalGrupos") {
             TelaPrincipalGrupos(navController)
         }
+
         composable("chat/{grupoId}") { backStackEntry ->
             val grupoId = backStackEntry.arguments?.getString("grupoId") ?: return@composable
             ChatScreen(navController, grupoId)
         }
+
         composable("criarGrupo") {
             CriarGrupoScreen(navController)
+        }
+
+        composable("lobbyPrincipal") {
+            TelaLobbyPrincipal(navController)
         }
     }
 }

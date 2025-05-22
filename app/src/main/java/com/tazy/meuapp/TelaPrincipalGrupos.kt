@@ -114,8 +114,8 @@ private fun ContentState(
             // Botão de Edição
             Button(
                 onClick = {
-                    navController.navigate("loginPrimeiraVez") {
-                        popUpTo("telaPrincipal") { saveState = true }
+                    navController.navigate("loginPrimeiraVez/editar") {
+                        popUpTo("telaPrincipalGrupos") { saveState = true }
                     }
                 },
                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
