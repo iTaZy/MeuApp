@@ -20,6 +20,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
+import com.google.firebase.auth.ktx.auth
+import com.google.firebase.ktx.Firebase
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -33,13 +36,24 @@ fun TelaFeedNoticias(
     val context = LocalContext.current
     val posts by viewModel.posts.collectAsState()
     val state by telaPrincipalViewModel.state.collectAsState()
+    val coroutineScope = rememberCoroutineScope()
 
     var showDialog by remember { mutableStateOf(false) }
     var textoPost by remember { mutableStateOf("") }
     val loading by viewModel.loading.collectAsState()
+    var userCondominiumCode by remember { mutableStateOf<String?>(null) }
 
-    LaunchedEffect(Unit) {
-        viewModel.startListeningFeed()
+    // Get current user ID
+    val userId = Firebase.auth.currentUser?.uid ?: ""
+
+    // Get user's condominium code when composable starts
+    LaunchedEffect(userId) {
+        coroutineScope.launch {
+            userCondominiumCode = viewModel.getCodigoCondominio(userId)
+            if (userCondominiumCode != null) {
+                viewModel.startListeningFeed()
+            }
+        }
     }
 
     DisposableEffect(Unit) {
@@ -53,12 +67,14 @@ fun TelaFeedNoticias(
             CabecalhoUsuario(state = state, navController = navController)
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = { showDialog = true },
-                containerColor = Color(0xFF2196F3),
-                contentColor = Color.White
-            ) {
-                Icon(Icons.Default.Add, contentDescription = "Criar Post")
+            if (userCondominiumCode != null) {
+                FloatingActionButton(
+                    onClick = { showDialog = true },
+                    containerColor = Color(0xFF2196F3),
+                    contentColor = Color.White
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Criar Post")
+                }
             }
         }
     ) { paddingValues ->
@@ -72,67 +88,88 @@ fun TelaFeedNoticias(
                 LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
             }
 
-            LazyColumn(
-                modifier = Modifier.fillMaxSize()
-            ) {
-                items(posts) { post ->
-                    Card(
-                        shape = RoundedCornerShape(8.dp),
-                        elevation = CardDefaults.cardElevation(4.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            Text(
-                                text = post.authorName,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-                            Text(
-                                text = post.text,
-                                modifier = Modifier.padding(vertical = 4.dp)
-                            )
-                            Text(
-                                text = post.timestamp?.toDate()?.let {
-                                    SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
-                                } ?: "",
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                val icon = if (post.likedByUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder
-                                val tint = if (post.likedByUser) Color.Red else Color.Gray
-                                Icon(
-                                    imageVector = icon,
-                                    contentDescription = "Curtir",
-                                    tint = tint,
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .clickable {
-                                            viewModel.toggleCurtirPost(post)
-                                        }
+            if (userCondominiumCode == null) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Carregando informações do condomínio...")
+                }
+            } else if (posts.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Nenhuma publicação no seu condomínio ainda. Seja o primeiro a postar!")
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    items(posts) { post ->
+                        Card(
+                            shape = RoundedCornerShape(8.dp),
+                            elevation = CardDefaults.cardElevation(4.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Text(
+                                    text = post.authorName,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
                                 )
-                                Spacer(modifier = Modifier.width(8.dp))
-                                Text(text = "${post.likesCount}")
+                                Text(
+                                    text = post.text,
+                                    modifier = Modifier.padding(vertical = 4.dp)
+                                )
+                                Text(
+                                    text = post.timestamp?.toDate()?.let {
+                                        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
+                                    } ?: "",
+                                    style = MaterialTheme.typography.bodySmall
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    val icon = if (post.likedByUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder
+                                    val tint = if (post.likedByUser) Color.Red else Color.Gray
+                                    Icon(
+                                        imageVector = icon,
+                                        contentDescription = "Curtir",
+                                        tint = tint,
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clickable {
+                                                viewModel.toggleCurtirPost(post)
+                                            }
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text(text = "${post.likesCount}")
+                                }
                             }
                         }
                     }
                 }
             }
         }
+    }
 
-        if (showDialog) {
-            AlertDialog(
-                onDismissRequest = { showDialog = false },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            if (textoPost.isBlank()) {
-                                Toast.makeText(context, "Escreva algo antes de publicar", Toast.LENGTH_SHORT).show()
-                                return@TextButton
-                            }
-                            viewModel.criarPost(textoPost.trim(), state.nomeUsuario) { sucesso ->
+    if (showDialog && userCondominiumCode != null) {
+        AlertDialog(
+            onDismissRequest = { showDialog = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (textoPost.isBlank()) {
+                            Toast.makeText(context, "Escreva algo antes de publicar", Toast.LENGTH_SHORT).show()
+                            return@TextButton
+                        }
+                        viewModel.criarPost(
+                            texto = textoPost.trim(),
+                            nomeUsuario = state.nomeUsuario,
+                            codigoCondominio = userCondominiumCode!!,
+                            onResult = { sucesso ->
                                 if (sucesso) {
                                     textoPost = ""
                                     showDialog = false
@@ -141,33 +178,33 @@ fun TelaFeedNoticias(
                                     Toast.makeText(context, "Erro ao criar post", Toast.LENGTH_SHORT).show()
                                 }
                             }
-                        },
-                        enabled = !loading
-                    ) {
-                        Text("Publicar")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDialog = false }) {
-                        Text("Cancelar")
-                    }
-                },
-                title = { Text("Novo Post") },
-                text = {
-                    OutlinedTextField(
-                        value = textoPost,
-                        onValueChange = { textoPost = it },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
-                        placeholder = { Text("O que você quer compartilhar?") },
-                        maxLines = 5,
-                        enabled = !loading
-                    )
-                },
-                shape = RoundedCornerShape(12.dp),
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        }
+                        )
+                    },
+                    enabled = !loading
+                ) {
+                    Text("Publicar")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDialog = false }) {
+                    Text("Cancelar")
+                }
+            },
+            title = { Text("Novo Post") },
+            text = {
+                OutlinedTextField(
+                    value = textoPost,
+                    onValueChange = { textoPost = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
+                    placeholder = { Text("O que você quer compartilhar?") },
+                    maxLines = 5,
+                    enabled = !loading
+                )
+            },
+            shape = RoundedCornerShape(12.dp),
+            containerColor = MaterialTheme.colorScheme.surface
+        )
     }
 }

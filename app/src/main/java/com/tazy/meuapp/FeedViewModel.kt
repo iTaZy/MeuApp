@@ -3,6 +3,7 @@ package com.tazy.meuapp
 import androidx.lifecycle.ViewModel
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import kotlinx.coroutines.tasks.await
@@ -16,7 +17,8 @@ data class Post(
     val text: String = "",
     val timestamp: Timestamp? = null,
     val likesCount: Int = 0,
-    val likedByUser: Boolean = false
+    val likedByUser: Boolean = false,
+    val codigoCondominio: String = "" // Added condominium code field
 )
 
 class FeedViewModel : ViewModel() {
@@ -35,41 +37,55 @@ class FeedViewModel : ViewModel() {
         val userId = auth.currentUser?.uid ?: return
         loading.value = true
 
-        listenerRegistration = db.collection("posts")
-            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshots, error ->
-                if (error != null) {
+        // First get the user's condominium code
+        db.collection("usuarios").document(userId).get()
+            .addOnSuccessListener { userDoc ->
+                val codigoCondominio = userDoc.getString("codigoCondominio") ?: run {
                     loading.value = false
-                    return@addSnapshotListener
+                    return@addOnSuccessListener
                 }
 
-                if (snapshots != null) {
-                    val rawPosts = snapshots.documents.mapNotNull { doc ->
-                        doc.toObject(Post::class.java)?.copy(id = doc.id)
-                    }
+                // Then listen to posts from the same condominium
+                listenerRegistration = db.collection("posts")
+                    .whereEqualTo("codigoCondominio", codigoCondominio)
+                    .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    .addSnapshotListener { snapshots, error ->
+                        if (error != null) {
+                            loading.value = false
+                            return@addSnapshotListener
+                        }
 
-                    val tasks = rawPosts.map { post ->
-                        db.collection("posts")
-                            .document(post.id)
-                            .collection("likes")
-                            .document(userId)
-                            .get()
-                            .continueWith { task ->
-                                val liked = task.result?.exists() ?: false
-                                post.copy(likedByUser = liked)
+                        if (snapshots != null) {
+                            val rawPosts = snapshots.documents.mapNotNull { doc ->
+                                doc.toObject(Post::class.java)?.copy(id = doc.id)
                             }
-                    }
 
-                    com.google.android.gms.tasks.Tasks.whenAllSuccess<Post>(tasks)
-                        .addOnSuccessListener { posts ->
-                            _posts.value = posts
-                            loading.value = false
+                            val tasks = rawPosts.map { post ->
+                                db.collection("posts")
+                                    .document(post.id)
+                                    .collection("likes")
+                                    .document(userId)
+                                    .get()
+                                    .continueWith { task ->
+                                        val liked = task.result?.exists() ?: false
+                                        post.copy(likedByUser = liked)
+                                    }
+                            }
+
+                            com.google.android.gms.tasks.Tasks.whenAllSuccess<Post>(tasks)
+                                .addOnSuccessListener { posts ->
+                                    _posts.value = posts
+                                    loading.value = false
+                                }
+                                .addOnFailureListener {
+                                    _posts.value = rawPosts
+                                    loading.value = false
+                                }
                         }
-                        .addOnFailureListener {
-                            _posts.value = rawPosts
-                            loading.value = false
-                        }
-                }
+                    }
+            }
+            .addOnFailureListener {
+                loading.value = false
             }
     }
 
@@ -78,7 +94,7 @@ class FeedViewModel : ViewModel() {
         listenerRegistration = null
     }
 
-    fun criarPost(texto: String, nomeUsuario: String, onResult: (Boolean) -> Unit) {
+    fun criarPost(texto: String, nomeUsuario: String, codigoCondominio: String, onResult: (Boolean) -> Unit) {
         val user = auth.currentUser ?: return onResult(false)
 
         val post = hashMapOf(
@@ -86,7 +102,8 @@ class FeedViewModel : ViewModel() {
             "authorName" to nomeUsuario,
             "text" to texto,
             "timestamp" to Timestamp.now(),
-            "likesCount" to 0
+            "likesCount" to 0,
+            "codigoCondominio" to codigoCondominio // Added condominium code
         )
 
         db.collection("posts").add(post)
@@ -101,12 +118,22 @@ class FeedViewModel : ViewModel() {
 
         if (post.likedByUser) {
             likeRef.delete().addOnSuccessListener {
-                postRef.update("likesCount", com.google.firebase.firestore.FieldValue.increment(-1))
+                postRef.update("likesCount", FieldValue.increment(-1))
             }
         } else {
             likeRef.set(mapOf("likedAt" to Timestamp.now())).addOnSuccessListener {
-                postRef.update("likesCount", com.google.firebase.firestore.FieldValue.increment(1))
+                postRef.update("likesCount", FieldValue.increment(1))
             }
+        }
+    }
+
+    // Add this function to get the user's condominium code
+    suspend fun getCodigoCondominio(userId: String): String? {
+        return try {
+            val snapshot = db.collection("usuarios").document(userId).get().await()
+            snapshot.getString("codigoCondominio")
+        } catch (e: Exception) {
+            null
         }
     }
 }
