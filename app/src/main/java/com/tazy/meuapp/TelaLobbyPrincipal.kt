@@ -3,7 +3,10 @@ package com.tazy.meuapp
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Feed
+import androidx.compose.material.icons.filled.Article
 import androidx.compose.material.icons.filled.Group
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -52,6 +55,20 @@ fun TelaLobbyPrincipal(navController: NavController) {
                     Icon(Icons.Default.Group, contentDescription = "Grupos")
                     Spacer(Modifier.width(8.dp))
                     Text("Entrar em Grupos", color = Color.White)
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Button(
+                    onClick = { navController.navigate("telaFeedNoticias") },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
+                    modifier = Modifier
+                        .fillMaxWidth(0.8f)
+                        .height(48.dp)
+                ) {
+                    Icon(Icons.Default.Article, contentDescription = "Feed")
+                    Spacer(Modifier.width(8.dp))
+                    Text("Feed de Notícias", color = Color.White)
                 }
             }
         }

@@ -61,5 +61,8 @@ fun NavGraph() {
         composable("lobbyPrincipal") {
             TelaLobbyPrincipal(navController)
         }
+        composable("telaFeedNoticias") {
+            TelaFeedNoticias(navController)
+        }
     }
 }
