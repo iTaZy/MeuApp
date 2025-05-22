@@ -43,7 +43,7 @@ fun NavGraph() {
             )
         }
         composable("telaPrincipal") {
-            TelaPrincipal(navController)
+            TelaPrincipalGrupos(navController)
         }
         composable("chat/{grupoId}") { backStackEntry ->
             val grupoId = backStackEntry.arguments?.getString("grupoId") ?: return@composable
