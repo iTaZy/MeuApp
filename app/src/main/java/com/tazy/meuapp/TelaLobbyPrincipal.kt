@@ -5,23 +5,31 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Group
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaLobbyPrincipal(navController: NavController) {
+    val viewModel: TelaPrincipalViewModel = viewModel()
+    val state by viewModel.state.collectAsState()
+
+    if (state.codigoCondominio.isBlank() && state.carregando) {
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = Color(0xFF2196F3))
+        }
+        return
+    }
+
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Lobby Principal", color = Color.White) },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF2196F3))
-            )
+            CabecalhoUsuario(state = state, navController = navController)
         }
     ) { padding ->
         Box(
@@ -32,7 +40,7 @@ fun TelaLobbyPrincipal(navController: NavController) {
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Bem-vindo!", fontSize = 24.sp, color = Color(0xFF1976D2))
+                Text("Bem-vindo ao Lobby!", fontSize = 24.sp, color = Color(0xFF1976D2))
                 Spacer(modifier = Modifier.height(32.dp))
                 Button(
                     onClick = { navController.navigate("telaPrincipalGrupos") },
@@ -43,10 +51,8 @@ fun TelaLobbyPrincipal(navController: NavController) {
                 ) {
                     Icon(Icons.Default.Group, contentDescription = "Grupos")
                     Spacer(Modifier.width(8.dp))
-                    Text("Entrar em Grupos")
+                    Text("Entrar em Grupos", color = Color.White)
                 }
-
-                // Adicione mais funcionalidades aqui futuramente
             }
         }
     }

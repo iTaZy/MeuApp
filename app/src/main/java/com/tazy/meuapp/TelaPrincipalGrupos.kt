@@ -36,6 +36,9 @@ fun TelaPrincipalGrupos(navController: NavController) {
     }
 
     Scaffold(
+        topBar = {
+            CabecalhoUsuario(state = state, navController = navController)
+        },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { navController.navigate("criarGrupo") },
@@ -91,38 +94,6 @@ private fun ContentState(
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // Cabeçalho
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Column {
-                Text(
-                    "Olá, ${state.nomeUsuario}!",
-                    fontSize = 20.sp,
-                    color = Color(0xFF2196F3)
-                )
-                Text(
-                    "Condomínio: ${state.codigoCondominio}",
-                    color = Color.Gray
-                )
-            }
-
-            // Botão de Edição
-            Button(
-                onClick = {
-                    navController.navigate("loginPrimeiraVez/editar") {
-                        popUpTo("telaPrincipalGrupos") { saveState = true }
-                    }
-                },
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3))
-            ) {
-                Text("Editar Perfil")
-            }
-        }
 
         // Grupos Recomendados
         Text(
