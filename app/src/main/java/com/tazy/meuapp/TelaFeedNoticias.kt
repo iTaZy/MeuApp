@@ -132,12 +132,11 @@ fun TelaFeedNoticias(
                                 )
                                 Spacer(modifier = Modifier.height(8.dp))
                                 Row(verticalAlignment = Alignment.CenterVertically) {
-                                    val icon = if (post.likedByUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder
-                                    val tint = if (post.likedByUser) Color.Red else Color.Gray
+                                    // Ícone do coração - vermelho se curtiu, sem cor se não curtiu
                                     Icon(
-                                        imageVector = icon,
+                                        imageVector = if (post.likedByUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                                         contentDescription = "Curtir",
-                                        tint = tint,
+                                        tint = if (post.likedByUser) Color.Red else Color.Unspecified, // Sem cor quando não curtiu
                                         modifier = Modifier
                                             .size(24.dp)
                                             .clickable {

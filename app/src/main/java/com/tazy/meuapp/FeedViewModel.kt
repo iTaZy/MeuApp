@@ -117,12 +117,18 @@ class FeedViewModel : ViewModel() {
         val postRef = db.collection("posts").document(post.id)
 
         if (post.likedByUser) {
+            // Remove o like
             likeRef.delete().addOnSuccessListener {
                 postRef.update("likesCount", FieldValue.increment(-1))
             }
         } else {
-            likeRef.set(mapOf("likedAt" to Timestamp.now())).addOnSuccessListener {
-                postRef.update("likesCount", FieldValue.increment(1))
+            // Adiciona o like (só permite se não tiver curtido antes)
+            likeRef.get().addOnSuccessListener { snapshot ->
+                if (!snapshot.exists()) {
+                    likeRef.set(mapOf("likedAt" to Timestamp.now())).addOnSuccessListener {
+                        postRef.update("likesCount", FieldValue.increment(1))
+                    }
+                }
             }
         }
     }
