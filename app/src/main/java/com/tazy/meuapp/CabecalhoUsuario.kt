@@ -3,11 +3,10 @@ package com.tazy.meuapp
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -41,3 +40,5 @@ fun CabecalhoUsuario(state: TelaPrincipalState, navController: NavController) {
         colors = TopAppBarDefaults.topAppBarColors(containerColor = Color(0xFF2196F3))
     )
 }
+
+

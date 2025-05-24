@@ -1,209 +1,162 @@
 package com.tazy.meuapp
 
-import android.widget.Toast
-import androidx.compose.foundation.clickable
+import android.util.Log
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Favorite
-import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.navigation.NavHostController
-import com.google.firebase.auth.ktx.auth
-import com.google.firebase.ktx.Firebase
-import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
-import java.util.*
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavController
+import com.google.accompanist.swiperefresh.SwipeRefresh
+import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
+import com.google.firebase.auth.FirebaseAuth
+import com.tazy.meuapp.ui.components.PostItem
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaFeedNoticias(
-    navController: NavHostController,
-    telaPrincipalViewModel: TelaPrincipalViewModel = viewModel(),
-    viewModel: FeedViewModel = viewModel()
+    navController: NavController,
+    viewModel: FeedViewModel = hiltViewModel(),
+    userViewModel: TelaPrincipalViewModel = hiltViewModel()
 ) {
-    val context = LocalContext.current
     val posts by viewModel.posts.collectAsState()
-    val state by telaPrincipalViewModel.state.collectAsState()
-    val coroutineScope = rememberCoroutineScope()
-
-    var showDialog by remember { mutableStateOf(false) }
-    var textoPost by remember { mutableStateOf("") }
     val loading by viewModel.loading.collectAsState()
+    val user = FirebaseAuth.getInstance().currentUser
+    val state by userViewModel.state.collectAsState()
+
     var userCondominiumCode by remember { mutableStateOf<String?>(null) }
 
-    // Get current user ID
-    val userId = Firebase.auth.currentUser?.uid ?: ""
+    var showDialog by remember { mutableStateOf(false) }
+    var novoPostTexto by remember { mutableStateOf("") }
 
-    // Get user's condominium code when composable starts
-    LaunchedEffect(userId) {
-        coroutineScope.launch {
-            userCondominiumCode = viewModel.getCodigoCondominio(userId)
-            if (userCondominiumCode != null) {
-                viewModel.startListeningFeed()
-            }
+    LaunchedEffect(user) {
+        user?.uid?.let { uid ->
+            val code = viewModel.getCodigoCondominio(uid)
+            userCondominiumCode = code
+            code?.let { viewModel.startListeningFeed(it) }
         }
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            viewModel.stopListeningFeed()
-        }
-    }
+    val refreshState = rememberSwipeRefreshState(isRefreshing = loading)
 
     Scaffold(
         topBar = {
             CabecalhoUsuario(state = state, navController = navController)
         },
         floatingActionButton = {
-            if (userCondominiumCode != null) {
-                FloatingActionButton(
-                    onClick = { showDialog = true },
-                    containerColor = Color(0xFF2196F3),
-                    contentColor = Color.White
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Criar Post")
-                }
+            FloatingActionButton(onClick = {
+                showDialog = true
+            }) {
+                Icon(Icons.Default.Add, contentDescription = "Novo Post")
             }
         }
     ) { paddingValues ->
-        Column(
+
+        if (showDialog) {
+            AlertDialog(
+                onDismissRequest = { showDialog = false },
+                title = { Text("Novo Post") },
+                text = {
+                    OutlinedTextField(
+                        value = novoPostTexto,
+                        onValueChange = { novoPostTexto = it },
+                        label = { Text("Digite seu post") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            val userName = state.nomeUsuario ?: "Usuário"
+                            val codigoCondominio = userCondominiumCode ?: ""
+                            if (novoPostTexto.isNotBlank() && codigoCondominio.isNotBlank()) {
+                                viewModel.criarPost(novoPostTexto, userName, codigoCondominio) { success ->
+                                    if (success) {
+                                        showDialog = false
+                                        novoPostTexto = ""
+                                    } else {
+                                        Log.e("TelaFeedNoticias", "Erro ao criar post")
+                                    }
+                                }
+                            }
+                        }
+                    ) {
+                        Text("Publicar")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showDialog = false }) {
+                        Text("Cancelar")
+                    }
+                }
+            )
+        }
+
+        SwipeRefresh(
+            state = refreshState,
+            onRefresh = { userCondominiumCode?.let { viewModel.startListeningFeed(it) } },
             modifier = Modifier
                 .fillMaxSize()
                 .padding(paddingValues)
-                .padding(horizontal = 8.dp)
         ) {
-            if (loading) {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp)
+            ) {
+                if (loading && posts.isEmpty()) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                }
 
-            if (userCondominiumCode == null) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Carregando informações do condomínio...")
-                }
-            } else if (posts.isEmpty()) {
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text("Nenhuma publicação no seu condomínio ainda. Seja o primeiro a postar!")
-                }
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    items(posts) { post ->
-                        Card(
-                            shape = RoundedCornerShape(8.dp),
-                            elevation = CardDefaults.cardElevation(4.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp)
+                when {
+                    userCondominiumCode == null -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Text(
-                                    text = post.authorName,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                                Text(
-                                    text = post.text,
-                                    modifier = Modifier.padding(vertical = 4.dp)
-                                )
-                                Text(
-                                    text = post.timestamp?.toDate()?.let {
-                                        SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault()).format(it)
-                                    } ?: "",
-                                    style = MaterialTheme.typography.bodySmall
-                                )
-                                Spacer(modifier = Modifier.height(8.dp))
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    // Ícone do coração - vermelho se curtiu, sem cor se não curtiu
-                                    Icon(
-                                        imageVector = if (post.likedByUser) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                                        contentDescription = "Curtir",
-                                        tint = if (post.likedByUser) Color.Red else Color.Unspecified, // Sem cor quando não curtiu
-                                        modifier = Modifier
-                                            .size(24.dp)
-                                            .clickable {
-                                                viewModel.toggleCurtirPost(post)
+                            Text("Você ainda não está vinculado a um condomínio.")
+                        }
+                    }
+                    posts.isEmpty() -> {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text("Nenhuma publicação encontrada.")
+                        }
+                    }
+                    else -> {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 80.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            items(posts) { post ->
+                                PostItem(
+                                    post = post,
+                                    onLikeClick = { liked ->
+                                        viewModel.toggleCurtirPost(post)
+                                    },
+                                    onDeleteClick = {
+                                        viewModel.excluirPost(post.id) { success ->
+                                            if (!success) {
+                                                Log.e("TelaFeedNoticias", "Erro ao excluir post")
+                                                // Aqui pode mostrar Snackbar/Toast se quiser
                                             }
-                                    )
-                                    Spacer(modifier = Modifier.width(8.dp))
-                                    Text(text = "${post.likesCount}")
-                                }
+                                        }
+                                    }
+                                )
                             }
                         }
                     }
                 }
             }
         }
-    }
-
-    if (showDialog && userCondominiumCode != null) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (textoPost.isBlank()) {
-                            Toast.makeText(context, "Escreva algo antes de publicar", Toast.LENGTH_SHORT).show()
-                            return@TextButton
-                        }
-                        viewModel.criarPost(
-                            texto = textoPost.trim(),
-                            nomeUsuario = state.nomeUsuario,
-                            codigoCondominio = userCondominiumCode!!,
-                            onResult = { sucesso ->
-                                if (sucesso) {
-                                    textoPost = ""
-                                    showDialog = false
-                                    Toast.makeText(context, "Post criado!", Toast.LENGTH_SHORT).show()
-                                } else {
-                                    Toast.makeText(context, "Erro ao criar post", Toast.LENGTH_SHORT).show()
-                                }
-                            }
-                        )
-                    },
-                    enabled = !loading
-                ) {
-                    Text("Publicar")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text("Cancelar")
-                }
-            },
-            title = { Text("Novo Post") },
-            text = {
-                OutlinedTextField(
-                    value = textoPost,
-                    onValueChange = { textoPost = it },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    placeholder = { Text("O que você quer compartilhar?") },
-                    maxLines = 5,
-                    enabled = !loading
-                )
-            },
-            shape = RoundedCornerShape(12.dp),
-            containerColor = MaterialTheme.colorScheme.surface
-        )
     }
 }

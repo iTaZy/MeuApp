@@ -12,6 +12,9 @@ buildscript {
         mavenCentral()
     }
     dependencies {
+
+        val hiltVersion = "2.46.1"
+        classpath("com.google.dagger:hilt-android-gradle-plugin:$hiltVersion")
         classpath ("com.android.tools.build:gradle:8.1.0") // ou o mais recente
         classpath ("com.google.gms:google-services:4.4.0")  // se estiver usando Firebase
     }

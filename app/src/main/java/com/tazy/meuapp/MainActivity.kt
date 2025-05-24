@@ -22,7 +22,9 @@ import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.tazy.meuapp.ui.theme.MeuAppTheme
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import dagger.hilt.android.AndroidEntryPoint
 
+@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

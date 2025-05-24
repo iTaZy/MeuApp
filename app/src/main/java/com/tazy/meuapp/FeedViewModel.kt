@@ -1,92 +1,82 @@
 package com.tazy.meuapp
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
-import kotlinx.coroutines.tasks.await
+import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
+import javax.inject.Inject
+import com.tazy.meuapp.model.Post
 
-data class Post(
-    val id: String = "",
-    val authorId: String = "",
-    val authorName: String = "",
-    val text: String = "",
-    val timestamp: Timestamp? = null,
-    val likesCount: Int = 0,
-    val likedByUser: Boolean = false,
-    val codigoCondominio: String = "" // Added condominium code field
-)
+@HiltViewModel
+class FeedViewModel @Inject constructor(
+    private val db: FirebaseFirestore,
+    private val auth: FirebaseAuth
+) : ViewModel() {
 
-class FeedViewModel : ViewModel() {
-
-    private val db = FirebaseFirestore.getInstance()
-    private val auth = FirebaseAuth.getInstance()
     private var listenerRegistration: ListenerRegistration? = null
-
     private val _posts = MutableStateFlow<List<Post>>(emptyList())
     val posts = _posts.asStateFlow()
+    val loading = MutableStateFlow(false)
 
-    var loading = MutableStateFlow(false)
-        private set
+    fun startListeningFeed(codigoCondominio: String) {
+        if (codigoCondominio.isBlank()) return
 
-    fun startListeningFeed() {
-        val userId = auth.currentUser?.uid ?: return
         loading.value = true
+        stopListeningFeed()
 
-        // First get the user's condominium code
-        db.collection("usuarios").document(userId).get()
-            .addOnSuccessListener { userDoc ->
-                val codigoCondominio = userDoc.getString("codigoCondominio") ?: run {
-                    loading.value = false
-                    return@addOnSuccessListener
+        val userId = auth.currentUser?.uid ?: run {
+            loading.value = false
+            return
+        }
+
+        listenerRegistration = db.collection("posts")
+            .whereEqualTo("codigoCondominio", codigoCondominio)
+            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshots, error ->
+                loading.value = false
+
+                if (error != null) {
+                    Log.e("FeedViewModel", "Erro no listener: ${error.message}")
+                    return@addSnapshotListener
                 }
 
-                // Then listen to posts from the same condominium
-                listenerRegistration = db.collection("posts")
-                    .whereEqualTo("codigoCondominio", codigoCondominio)
-                    .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-                    .addSnapshotListener { snapshots, error ->
-                        if (error != null) {
-                            loading.value = false
-                            return@addSnapshotListener
-                        }
-
-                        if (snapshots != null) {
-                            val rawPosts = snapshots.documents.mapNotNull { doc ->
-                                doc.toObject(Post::class.java)?.copy(id = doc.id)
-                            }
-
-                            val tasks = rawPosts.map { post ->
-                                db.collection("posts")
-                                    .document(post.id)
-                                    .collection("likes")
-                                    .document(userId)
-                                    .get()
-                                    .continueWith { task ->
-                                        val liked = task.result?.exists() ?: false
-                                        post.copy(likedByUser = liked)
-                                    }
-                            }
-
-                            com.google.android.gms.tasks.Tasks.whenAllSuccess<Post>(tasks)
-                                .addOnSuccessListener { posts ->
-                                    _posts.value = posts
-                                    loading.value = false
-                                }
-                                .addOnFailureListener {
-                                    _posts.value = rawPosts
-                                    loading.value = false
-                                }
-                        }
+                snapshots?.let { docs ->
+                    val rawPosts = docs.documents.mapNotNull { doc ->
+                        doc.toObject(Post::class.java)?.copy(id = doc.id)
                     }
+
+                    checkLikesForPosts(userId, rawPosts)
+                }
             }
-            .addOnFailureListener {
-                loading.value = false
+    }
+
+    private fun checkLikesForPosts(userId: String, rawPosts: List<Post>) {
+        viewModelScope.launch {
+            val postsWithLikes = rawPosts.map { post ->
+                val liked = try {
+                    db.collection("posts")
+                        .document(post.id)
+                        .collection("likes")
+                        .document(userId)
+                        .get()
+                        .await()
+                        .exists()
+                } catch (e: Exception) {
+                    false
+                }
+                post.copy(likedByUser = liked)
             }
+            _posts.value = postsWithLikes
+        }
     }
 
     fun stopListeningFeed() {
@@ -103,7 +93,7 @@ class FeedViewModel : ViewModel() {
             "text" to texto,
             "timestamp" to Timestamp.now(),
             "likesCount" to 0,
-            "codigoCondominio" to codigoCondominio // Added condominium code
+            "codigoCondominio" to codigoCondominio
         )
 
         db.collection("posts").add(post)
@@ -117,12 +107,10 @@ class FeedViewModel : ViewModel() {
         val postRef = db.collection("posts").document(post.id)
 
         if (post.likedByUser) {
-            // Remove o like
             likeRef.delete().addOnSuccessListener {
                 postRef.update("likesCount", FieldValue.increment(-1))
             }
         } else {
-            // Adiciona o like (só permite se não tiver curtido antes)
             likeRef.get().addOnSuccessListener { snapshot ->
                 if (!snapshot.exists()) {
                     likeRef.set(mapOf("likedAt" to Timestamp.now())).addOnSuccessListener {
@@ -133,12 +121,19 @@ class FeedViewModel : ViewModel() {
         }
     }
 
-    // Add this function to get the user's condominium code
+    // NOVO: função para excluir post
+    fun excluirPost(postId: String, onResult: (Boolean) -> Unit) {
+        db.collection("posts").document(postId).delete()
+            .addOnSuccessListener { onResult(true) }
+            .addOnFailureListener { onResult(false) }
+    }
+
     suspend fun getCodigoCondominio(userId: String): String? {
         return try {
             val snapshot = db.collection("usuarios").document(userId).get().await()
             snapshot.getString("codigoCondominio")
         } catch (e: Exception) {
+            Log.e("FeedViewModel", "Erro ao buscar código do condomínio", e)
             null
         }
     }
