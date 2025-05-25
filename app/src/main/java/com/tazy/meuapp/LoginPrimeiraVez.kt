@@ -25,6 +25,8 @@ import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import com.tazy.meuapp.model.CabecalhoUsuario
+import com.tazy.meuapp.model.RodapeUsuario
 
 @Composable
 fun LoginPrimeiraVez(
@@ -59,6 +61,14 @@ fun LoginPrimeiraVez(
         "Fotografia" to Icons.Default.PhotoCamera
     )
 
+    // Estado mock para o cabeçalho (ajuste conforme sua lógica real)
+    val estadoCabecalho = remember {
+        TelaPrincipalState(
+            nomeUsuario = currentUser?.displayName ?: "Usuário",
+            codigoCondominio = "Condomínio"
+        )
+    }
+
     // Carregar dados existentes
     LaunchedEffect(Unit) {
         if (modoEdicao && currentUser != null) {
@@ -81,26 +91,24 @@ fun LoginPrimeiraVez(
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // Cabeçalho azul
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(azul)
-                .padding(vertical = 24.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = if (modoEdicao) "Editar Perfil" else "Complete seu perfil",
-                fontSize = 22.sp,
-                color = Color.White
-            )
-        }
+        // Cabeçalho do usuário
+        CabecalhoUsuario(state = estadoCabecalho, navController = navController)
 
+        // Conteúdo principal
         Column(
             modifier = Modifier
                 .padding(horizontal = 16.dp, vertical = 12.dp)
-                .fillMaxSize()
+                .weight(1f)
         ) {
+            if (!modoEdicao) {
+                Text(
+                    text = "Complete seu perfil",
+                    fontSize = 22.sp,
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 16.dp)
+                )
+            }
+
             OutlinedTextField(
                 value = bio,
                 onValueChange = { bio = it },
@@ -243,5 +251,8 @@ fun LoginPrimeiraVez(
                 )
             }
         }
+
+        // Rodapé do usuário
+        RodapeUsuario(navController = navController, selected = "")
     }
 }
