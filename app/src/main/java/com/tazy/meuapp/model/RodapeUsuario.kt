@@ -42,7 +42,7 @@ fun RodapeUsuario(navController: NavController, selected: String) {
                 iconRes = R.drawable.ic_lobby,
                 label = "Lobby",
                 isSelected = selected == "Lobby",
-                onClick = { navController.navigate("TelaLobbyPrincipal") }
+                onClick = { navController.navigate("LobbyPrincipal") }
             )
             BotaoRodapePersonalizado(
                 iconRes = R.drawable.ic_grupos,

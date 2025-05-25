@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
 import com.tazy.meuapp.model.CabecalhoUsuario
+import com.tazy.meuapp.model.RodapeUsuario
 
 @Composable
 fun TelaPrincipalGrupos(navController: NavController) {
@@ -37,15 +38,21 @@ fun TelaPrincipalGrupos(navController: NavController) {
     }
 
     Scaffold(
+        containerColor = Color.White,
         topBar = {
             CabecalhoUsuario(state = state, navController = navController)
+        },
+        bottomBar = {
+            RodapeUsuario(navController = navController, selected = "Grupos")
         },
         floatingActionButton = {
             FloatingActionButton(
                 onClick = { navController.navigate("criarGrupo") },
                 containerColor = Color(0xFF2196F3),
                 contentColor = Color.White
-            ) { Icon(Icons.Default.Add, contentDescription = "Novo grupo") }
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Novo grupo")
+            }
         }
     ) { paddingValues ->
         Box(

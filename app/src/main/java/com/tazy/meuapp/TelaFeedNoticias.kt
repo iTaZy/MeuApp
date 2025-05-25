@@ -1,6 +1,7 @@
 package com.tazy.meuapp
 
 import android.util.Log
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -10,6 +11,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -17,6 +19,7 @@ import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.google.firebase.auth.FirebaseAuth
 import com.tazy.meuapp.model.CabecalhoUsuario
+import com.tazy.meuapp.model.RodapeUsuario
 import com.tazy.meuapp.ui.components.PostItem
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -47,8 +50,12 @@ fun TelaFeedNoticias(
     val refreshState = rememberSwipeRefreshState(isRefreshing = loading)
 
     Scaffold(
+        containerColor = Color.White,
         topBar = {
             CabecalhoUsuario(state = state, navController = navController)
+        },
+        bottomBar = {
+            RodapeUsuario(navController = navController, selected = "Feed")
         },
         floatingActionButton = {
             FloatingActionButton(onClick = {
@@ -110,6 +117,7 @@ fun TelaFeedNoticias(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 8.dp)
+
             ) {
                 if (loading && posts.isEmpty()) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
