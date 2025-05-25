@@ -1,7 +1,6 @@
+// TelaConexoes.kt
 package com.tazy.meuapp
 
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -11,7 +10,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,18 +29,21 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.tazy.meuapp.model.CabecalhoUsuario
 import com.tazy.meuapp.model.RodapeUsuario
-import kotlin.math.roundToInt
+import com.tazy.meuapp.viewmodel.ConexoesViewModel
+import com.tazy.meuapp.viewmodel.ConexoesUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TelaConexoes(navController: NavController) {
-    val viewModel: TelaPrincipalViewModel = viewModel()
-    val state by viewModel.state.collectAsState()
+    val viewModel: ConexoesViewModel = viewModel()
+    val uiState = viewModel.uiState.collectAsState().value
+    val principalViewModel: TelaPrincipalViewModel = viewModel()
+    val principalState = principalViewModel.state.collectAsState().value
 
     Scaffold(
         containerColor = Color.White,
         topBar = {
-            CabecalhoUsuario(state = state, navController = navController)
+            CabecalhoUsuario(state = principalState, navController = navController)
         },
         bottomBar = {
             RodapeUsuario(navController = navController, selected = "Conexões")
@@ -51,192 +55,159 @@ fun TelaConexoes(navController: NavController) {
                 .fillMaxSize()
                 .background(Color.White)
         ) {
-            // Lista de perfis fictícios (substitua por dados reais do seu app)
-            val profiles = listOf(
-                Profile(
-                    id = "1",
-                    name = "Ana Silva",
-                    imageUrl = "https://randomuser.me/api/portraits/women/42.jpg",
-                    age = 28,
-                    bio = "Mora no bloco B, ama animais e jardinagem"
-                ),
-                Profile(
-                    id = "2",
-                    name = "Carlos Oliveira",
-                    imageUrl = "https://randomuser.me/api/portraits/men/32.jpg",
-                    age = 35,
-                    bio = "Corredor de fim de semana, sempre no parque aos sábados"
-                ),
-                Profile(
-                    id = "3",
-                    name = "Mariana Costa",
-                    imageUrl = "https://randomuser.me/api/portraits/women/63.jpg",
-                    age = 31,
-                    bio = "Organiza eventos no condomínio, adora cozinhar"
-                )
-            )
-
-            var currentProfileIndex by remember { mutableStateOf(0) }
-
-            if (currentProfileIndex < profiles.size) {
-                val currentProfile = profiles[currentProfileIndex]
-
-                var offsetX by remember { mutableStateOf(0f) }
-                var offsetY by remember { mutableStateOf(0f) }
-
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Text(
-                        text = "Conheça seus vizinhos",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFF2196F3),
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                        shape = RoundedCornerShape(16.dp)
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            AsyncImage(
-                                model = ImageRequest.Builder(LocalContext.current)
-                                    .data(currentProfile.imageUrl)
-                                    .crossfade(true)
-                                    .build(),
-                                contentDescription = "Foto de perfil",
-                                contentScale = ContentScale.Crop,
-                                modifier = Modifier.fillMaxSize()
-                            )
-
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .fillMaxWidth()
-                                    .background(Color.Black.copy(alpha = 0.6f))
-                                    .padding(16.dp)
-                            ) {
-                                Text(
-                                    text = "${currentProfile.name}, ${currentProfile.age}",
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
-                                )
-
-                                Text(
-                                    text = currentProfile.bio,
-                                    fontSize = 16.sp,
-                                    color = Color.White,
-                                    modifier = Modifier.padding(top = 8.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 16.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly
-                    ) {
-                        // Botão de dislike
-                        Button(
-                            onClick = {
-                                // Animação de deslize para esquerda
-                                offsetX = -1000f
-                                offsetY = 0f
-                                // Avança para o próximo perfil
-                                currentProfileIndex++
-                            },
-                            modifier = Modifier
-                                .size(70.dp)
-                                .clip(CircleShape),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = Color.Red
-                            ),
-                            border = BorderStroke(2.dp, Color.Red)
-                        ) {
-                            Icon(
-                                Icons.Default.Close,
-                                contentDescription = "Dislike",
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.width(32.dp))
-
-                        // Botão de like
-                        Button(
-                            onClick = {
-                                // Animação de deslize para direita
-                                offsetX = 1000f
-                                offsetY = 0f
-                                // Avança para o próximo perfil
-                                currentProfileIndex++
-                            },
-                            modifier = Modifier
-                                .size(70.dp)
-                                .clip(CircleShape),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = Color.Green
-                            ),
-                            border = BorderStroke(2.dp, Color.Green)
-                        ) {
-                            Icon(
-                                Icons.Default.Favorite,
-                                contentDescription = "Like",
-                                modifier = Modifier.size(36.dp)
-                            )
-                        }
+            when (uiState) {
+                is ConexoesUiState.Loading -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = Color(0xFF2196F3))
                     }
                 }
-            } else {
-                // Todos os perfis foram vistos
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
+                is ConexoesUiState.Success -> {
+                    val profile = uiState.currentProfile
+
                     Column(
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         Text(
-                            text = "Você viu todos os perfis disponíveis!",
+                            text = "Conheça seus vizinhos",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold,
                             color = Color(0xFF2196F3),
                             modifier = Modifier.padding(bottom = 16.dp)
                         )
 
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                AsyncImage(
+                                    model = ImageRequest.Builder(LocalContext.current)
+                                        .data(profile.imageUrl)
+                                        .crossfade(true)
+                                        .build(),
+                                    contentDescription = "Foto de perfil",
+                                    contentScale = ContentScale.Crop,
+                                    modifier = Modifier.fillMaxSize()
+                                )
+
+                                Column(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .fillMaxWidth()
+                                        .background(Color.Black.copy(alpha = 0.6f))
+                                        .padding(16.dp)
+                                ) {
+                                    Text(
+                                        text = "${profile.name}, ${profile.age}",
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+
+                                    Text(
+                                        text = profile.bio,
+                                        fontSize = 16.sp,
+                                        color = Color.White,
+                                        modifier = Modifier.padding(top = 8.dp)
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly
+                        ) {
+                            // Botão de dislike
+                            Button(
+                                onClick = { viewModel.dislikeProfile() },
+                                modifier = Modifier
+                                    .size(70.dp)
+                                    .clip(CircleShape),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color.Red
+                                ),
+                                border = BorderStroke(2.dp, Color.Red)
+                            ) {
+                                Icon(
+                                    Icons.Default.Close,
+                                    contentDescription = "Dislike",
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(32.dp))
+
+                            // Botão de like
+                            Button(
+                                onClick = { viewModel.likeProfile() },
+                                modifier = Modifier
+                                    .size(70.dp)
+                                    .clip(CircleShape),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.White,
+                                    contentColor = Color.Green
+                                ),
+                                border = BorderStroke(2.dp, Color.Green)
+                            ) {
+                                Icon(
+                                    Icons.Default.Favorite,
+                                    contentDescription = "Like",
+                                    modifier = Modifier.size(36.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                is ConexoesUiState.Error -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
-                            text = "Volte mais tarde para conhecer novos vizinhos",
-                            fontSize = 16.sp,
-                            color = Color.Gray,
-                            textAlign = TextAlign.Center
+                            text = uiState.message,
+                            color = Color.Red,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(16.dp)
                         )
+                    }
+                }
+                ConexoesUiState.Empty -> {
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Text(
+                                text = "Você viu todos os perfis disponíveis!",
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = Color(0xFF2196F3),
+                                modifier = Modifier.padding(bottom = 16.dp)
+                            )
+
+                            Text(
+                                text = "Volte mais tarde para conhecer novos vizinhos",
+                                fontSize = 16.sp,
+                                color = Color.Gray,
+                                textAlign = TextAlign.Center
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
-
-data class Profile(
-    val id: String,
-    val name: String,
-    val imageUrl: String,
-    val age: Int,
-    val bio: String
-)
