@@ -1,14 +1,26 @@
 package com.tazy.meuapp
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Feed
-import androidx.compose.material.icons.filled.Article
-import androidx.compose.material.icons.filled.Group
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -16,6 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavController
+import com.tazy.meuapp.model.CabecalhoUsuario
+import com.tazy.meuapp.model.RodapeUsuario
+import com.tazy.meuapp.ui.components.ItemConversa
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,45 +45,67 @@ fun TelaLobbyPrincipal(navController: NavController) {
         return
     }
 
+    var selectedTabIndex by remember { mutableStateOf(0) }
+
     Scaffold(
+        containerColor = Color.White,
         topBar = {
             CabecalhoUsuario(state = state, navController = navController)
+        },
+        bottomBar = {
+            RodapeUsuario(navController = navController, selected = "Lobby")
         }
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
-                .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFE3F2FD)),
-            contentAlignment = Alignment.Center
+                .fillMaxSize()
+                .background(Color.White)
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Bem-vindo ao Lobby!", fontSize = 24.sp, color = Color(0xFF1976D2))
-                Spacer(modifier = Modifier.height(32.dp))
-                Button(
-                    onClick = { navController.navigate("telaPrincipalGrupos") },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
-                    modifier = Modifier
-                        .fillMaxWidth(0.8f)
-                        .height(48.dp)
-                ) {
-                    Icon(Icons.Default.Group, contentDescription = "Grupos")
-                    Spacer(Modifier.width(8.dp))
-                    Text("Entrar em Grupos", color = Color.White)
-                }
+            Spacer(modifier = Modifier.height(12.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
+            Text(
+                text = "Bem-vindo ao Lobby",
+                color = Color(0xFF2196F3),
+                fontSize = 20.sp,
+                modifier = Modifier.align(Alignment.CenterHorizontally)
+            )
 
-                Button(
-                    onClick = { navController.navigate("telaFeedNoticias") },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2196F3)),
-                    modifier = Modifier
-                        .fillMaxWidth(0.8f)
-                        .height(48.dp)
-                ) {
-                    Icon(Icons.Default.Article, contentDescription = "Feed")
-                    Spacer(Modifier.width(8.dp))
-                    Text("Feed de Notícias", color = Color.White)
+            Spacer(modifier = Modifier.height(12.dp))
+
+            TabRow(
+                selectedTabIndex = selectedTabIndex,
+                containerColor = Color.White,
+                contentColor = Color(0xFF2196F3),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+            ) {
+                Tab(
+                    selected = selectedTabIndex == 0,
+                    onClick = { selectedTabIndex = 0 },
+                    text = { Text("Conversas") }
+                )
+                Tab(
+                    selected = selectedTabIndex == 1,
+                    onClick = { selectedTabIndex = 1 },
+                    text = { Text("Arquivadas") }
+                )
+            }
+
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+            ) {
+                items(10) { index ->
+                    ItemConversa(
+                        nome = if (index % 2 == 0) "Valentino Morose" else "Brandon Guidelines",
+                        mensagem = if (index % 2 == 0)
+                            "Quisque ornare ligula metus, eu..." else
+                            "Pellentesque eleifend ante porttit!",
+                        horario = "16:20"
+                    )
                 }
             }
         }

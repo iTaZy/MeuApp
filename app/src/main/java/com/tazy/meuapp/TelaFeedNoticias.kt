@@ -16,6 +16,7 @@ import androidx.navigation.NavController
 import com.google.accompanist.swiperefresh.SwipeRefresh
 import com.google.accompanist.swiperefresh.rememberSwipeRefreshState
 import com.google.firebase.auth.FirebaseAuth
+import com.tazy.meuapp.model.CabecalhoUsuario
 import com.tazy.meuapp.ui.components.PostItem
 
 @OptIn(ExperimentalMaterial3Api::class)
