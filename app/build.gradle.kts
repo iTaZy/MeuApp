@@ -51,6 +51,7 @@ dependencies {
     implementation("com.google.firebase:firebase-firestore-ktx:24.10.2")
 
     // Compose
+    implementation("com.google.accompanist:accompanist-drawablepainter:0.32.0")
     implementation ("com.google.accompanist:accompanist-swiperefresh:0.33.2-alpha")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

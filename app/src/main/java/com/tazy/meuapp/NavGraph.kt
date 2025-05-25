@@ -5,6 +5,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import com.meuapp.ui.telas.TelaConexoes
 
 @Composable
 fun NavGraph() {
@@ -65,7 +66,7 @@ fun NavGraph() {
             TelaFeedNoticias(navController = navController)
         }
         composable("telaConexoes") {
-            TelaConexoes(navController)
+            TelaConexoes()
         }
     }
 }
