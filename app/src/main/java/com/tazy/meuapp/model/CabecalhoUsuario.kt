@@ -12,6 +12,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.tazy.meuapp.TelaPrincipalState
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CabecalhoUsuario(state: TelaPrincipalState, navController: NavController) {

@@ -6,9 +6,12 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -37,17 +41,23 @@ fun LoginPrimeiraVez(
     val auth = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
 
+    // Estados do formulário
     var bio by remember { mutableStateOf("") }
+    var idade by remember { mutableStateOf("") }
+    var nomeUsuario by remember { mutableStateOf("") }
+    var codigoCondominio by remember { mutableStateOf("") }
+    var erro by remember { mutableStateOf("") }
+    var carregando by remember { mutableStateOf(true) }
+
+    // Lista de interesses
     val interessesLista = listOf(
         "Esportes", "Leitura", "Música", "Filmes", "Viagens",
         "Culinária", "Tecnologia", "Jogos", "Arte", "Fotografia"
     )
     val interessesSelecionados = remember { mutableStateListOf<String>() }
-    var erro by remember { mutableStateOf("") }
 
     // Cores e ícones
     val azul = Color(0xFF2196F3)
-
     val icones: Map<String, ImageVector> = mapOf(
         "Esportes" to Icons.Default.SportsSoccer,
         "Leitura" to Icons.Default.MenuBook,
@@ -61,28 +71,31 @@ fun LoginPrimeiraVez(
         "Fotografia" to Icons.Default.PhotoCamera
     )
 
-    // Estado mock para o cabeçalho (ajuste conforme sua lógica real)
-    val estadoCabecalho = remember {
-        TelaPrincipalState(
-            nomeUsuario = currentUser?.displayName ?: "Usuário",
-            codigoCondominio = "Condomínio"
-        )
-    }
-
     // Carregar dados existentes
-    LaunchedEffect(Unit) {
-        if (modoEdicao && currentUser != null) {
+    LaunchedEffect(currentUser) {
+        if (currentUser != null) {
             firestore.collection("usuarios")
                 .document(currentUser.uid)
                 .get()
                 .addOnSuccessListener { document ->
+                    nomeUsuario = document.getString("nome") ?: currentUser.displayName ?: "Usuário"
+                    codigoCondominio = document.getString("codigoCondominio") ?: "Condomínio"
                     bio = document.getString("bio") ?: ""
+                    idade = document.get("idade")?.toString() ?: ""
+
                     val interesses = document.get("interesses") as? List<String> ?: emptyList()
                     interessesSelecionados.addAll(interesses)
+
+                    carregando = false
                 }
                 .addOnFailureListener {
-                    erro = "Erro ao carregar perfil"
+                    nomeUsuario = currentUser.displayName ?: "Usuário"
+                    codigoCondominio = "Condomínio"
+                    erro = if (modoEdicao) "Erro ao carregar perfil" else ""
+                    carregando = false
                 }
+        } else {
+            carregando = false
         }
     }
 
@@ -91,125 +104,161 @@ fun LoginPrimeiraVez(
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // Cabeçalho do usuário
-        CabecalhoUsuario(state = estadoCabecalho, navController = navController)
+        // Cabeçalho do usuário com dados reais
+        CabecalhoUsuario(
+            state = TelaPrincipalState(
+                nomeUsuario = nomeUsuario,
+                codigoCondominio = codigoCondominio
+            ),
+            navController = navController
+        )
 
-        // Conteúdo principal
+        // Conteúdo principal com scroll
         Column(
             modifier = Modifier
-                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .padding(horizontal = 16.dp)
                 .weight(1f)
+                .verticalScroll(rememberScrollState())
         ) {
-            if (!modoEdicao) {
-                Text(
-                    text = "Complete seu perfil",
-                    fontSize = 22.sp,
-                    color = Color.Black,
-                    modifier = Modifier.padding(bottom = 16.dp)
+            if (carregando) {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(vertical = 16.dp)
                 )
-            }
+            } else {
+                if (!modoEdicao) {
+                    Text(
+                        text = "Complete seu perfil",
+                        fontSize = 22.sp,
+                        color = Color.Black,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+                }
 
-            OutlinedTextField(
-                value = bio,
-                onValueChange = { bio = it },
-                label = { Text("Bio") },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(120.dp),
-                shape = RoundedCornerShape(8.dp)
-            )
+                // Campo de idade
+                OutlinedTextField(
+                    value = idade,
+                    onValueChange = { idade = it },
+                    label = { Text("Idade") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    shape = RoundedCornerShape(8.dp)
+                )
 
-            Spacer(modifier = Modifier.height(20.dp))
+                // Campo de bio
+                OutlinedTextField(
+                    value = bio,
+                    onValueChange = { bio = it },
+                    label = { Text("Bio") },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(120.dp),
+                    shape = RoundedCornerShape(8.dp)
+                )
 
-            Text(
-                "Selecione seus interesses:",
-                fontSize = 18.sp,
-                color = Color.Black,
-                modifier = Modifier.padding(bottom = 8.dp)
-            )
+                Spacer(modifier = Modifier.height(20.dp))
 
-            // Caixa com sombra para os interesses
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .shadow(4.dp, RoundedCornerShape(12.dp))
-                    .background(Color.White, RoundedCornerShape(12.dp))
-                    .padding(12.dp)
-            ) {
-                LazyColumn {
-                    items(interessesLista.size) { index ->
-                        val interesse = interessesLista[index]
-                        val isSelecionado = interessesSelecionados.contains(interesse)
-                        val icone = icones[interesse] ?: Icons.Default.Star
+                Text(
+                    "Selecione seus interesses:",
+                    fontSize = 18.sp,
+                    color = Color.Black,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
 
-                        val offset by animateDpAsState(
-                            targetValue = if (isSelecionado) 32.dp else 0.dp,
-                            animationSpec = tween(durationMillis = 250),
-                            label = "offsetAnim"
-                        )
+                // Lista de interesses com altura limitada
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 300.dp)
+                        .shadow(4.dp, RoundedCornerShape(12.dp))
+                        .background(Color.White, RoundedCornerShape(12.dp))
+                ) {
+                    LazyColumn(
+                        modifier = Modifier.padding(12.dp)
+                    ) {
+                        items(interessesLista.size) { index ->
+                            val interesse = interessesLista[index]
+                            val isSelecionado = interessesSelecionados.contains(interesse)
+                            val icone = icones[interesse] ?: Icons.Default.Star
 
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 6.dp)
-                                .toggleable(
-                                    value = isSelecionado,
-                                    onValueChange = {
-                                        if (it) interessesSelecionados.add(interesse)
-                                        else interessesSelecionados.remove(interesse)
-                                    }
-                                )
-                        ) {
-                            Icon(
-                                imageVector = icone,
-                                contentDescription = interesse,
-                                tint = if (isSelecionado) azul else Color.Black,
-                                modifier = Modifier
-                                    .size(28.dp)
-                                    .padding(end = 12.dp)
+                            val offset by animateDpAsState(
+                                targetValue = if (isSelecionado) 32.dp else 0.dp,
+                                animationSpec = tween(durationMillis = 250),
+                                label = "offsetAnim"
                             )
 
-                            Text(
-                                text = interesse,
-                                fontSize = 16.sp,
-                                modifier = Modifier.weight(1f)
-                            )
-
-                            // Switch
-                            Box(
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
                                 modifier = Modifier
-                                    .width(64.dp)
-                                    .height(32.dp)
-                                    .clip(RoundedCornerShape(50))
-                                    .background(if (isSelecionado) azul else Color.White)
-                                    .border(2.dp, azul, RoundedCornerShape(50))
+                                    .fillMaxWidth()
+                                    .padding(vertical = 6.dp)
+                                    .toggleable(
+                                        value = isSelecionado,
+                                        onValueChange = {
+                                            if (it) interessesSelecionados.add(interesse)
+                                            else interessesSelecionados.remove(interesse)
+                                        }
+                                    )
                             ) {
+                                Icon(
+                                    imageVector = icone,
+                                    contentDescription = interesse,
+                                    tint = if (isSelecionado) azul else Color.Black,
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .padding(end = 12.dp)
+                                )
+
+                                Text(
+                                    text = interesse,
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.weight(1f)
+                                )
+
                                 Box(
                                     modifier = Modifier
-                                        .offset(x = offset)
-                                        .padding(4.dp)
-                                        .size(24.dp)
-                                        .clip(CircleShape)
-                                        .background(Color.White)
-                                        .border(2.dp, azul, CircleShape)
-                                )
+                                        .width(64.dp)
+                                        .height(32.dp)
+                                        .clip(RoundedCornerShape(50))
+                                        .background(if (isSelecionado) azul else Color.White)
+                                        .border(2.dp, azul, RoundedCornerShape(50))
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .offset(x = offset)
+                                            .padding(4.dp)
+                                            .size(24.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.White)
+                                            .border(2.dp, azul, CircleShape)
+                                    )
+                                }
                             }
                         }
                     }
                 }
+
+                if (erro.isNotEmpty()) {
+                    Text(
+                        text = erro,
+                        color = Color.Red,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
             }
+        }
 
-            if (erro.isNotEmpty()) {
-                Text(
-                    text = erro,
-                    color = Color.Red,
-                    modifier = Modifier.padding(top = 8.dp)
-                )
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
+        // Botão fixo na parte inferior
+        Column(
+            modifier = Modifier
+                .padding(horizontal = 16.dp)
+                .padding(bottom = 16.dp)
+        ) {
             Button(
                 onClick = {
                     if (currentUser == null) {
@@ -217,8 +266,28 @@ fun LoginPrimeiraVez(
                         return@Button
                     }
 
+                    if (idade.isBlank()) {
+                        erro = "Por favor, informe sua idade"
+                        return@Button
+                    }
+
+                    val idadeNumero = try {
+                        idade.toInt()
+                    } catch (e: NumberFormatException) {
+                        erro = "Idade inválida"
+                        return@Button
+                    }
+
+                    if (idadeNumero <= 0 || idadeNumero > 120) {
+                        erro = "Idade deve estar entre 1 e 120 anos"
+                        return@Button
+                    }
+
                     val dados = hashMapOf(
+                        "nome" to nomeUsuario,
+                        "codigoCondominio" to codigoCondominio,
                         "bio" to bio,
+                        "idade" to idadeNumero,
                         "interesses" to interessesSelecionados.toList()
                     )
 
