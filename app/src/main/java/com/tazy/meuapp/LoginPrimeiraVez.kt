@@ -162,14 +162,20 @@ fun LoginPrimeiraVez(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Botão alterar foto
+                // Botão alterar foto - exato da imagem
                 Button(
                     onClick = { /* Implementar alteração de foto */ },
-                    colors = ButtonDefaults.buttonColors(containerColor = azul),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
+                    shape = RoundedCornerShape(6.dp),
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .height(36.dp)
                 ) {
-                    Text("Alterar foto de perfil", color = Color.White)
+                    Text(
+                        "Alterar foto de perfil",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
