@@ -22,6 +22,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -42,8 +43,12 @@ fun LoginPrimeiraVez(
     val currentUser = auth.currentUser
 
     // Estados do formulário
+    var nome by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
     var idade by remember { mutableStateOf("") }
+    var sexualidade by remember { mutableStateOf("") }
+    var signo by remember { mutableStateOf("") }
     var nomeUsuario by remember { mutableStateOf("") }
     var codigoCondominio by remember { mutableStateOf("") }
     var erro by remember { mutableStateOf("") }
@@ -56,8 +61,11 @@ fun LoginPrimeiraVez(
     )
     val interessesSelecionados = remember { mutableStateListOf<String>() }
 
-    // Cores e ícones
+    // Cores
     val azul = Color(0xFF2196F3)
+    val cinzaClaro = Color(0xFFF5F5F5)
+
+    // Ícones para interesses
     val icones: Map<String, ImageVector> = mapOf(
         "Esportes" to Icons.Default.SportsSoccer,
         "Leitura" to Icons.Default.MenuBook,
@@ -80,8 +88,12 @@ fun LoginPrimeiraVez(
                 .addOnSuccessListener { document ->
                     nomeUsuario = document.getString("nome") ?: currentUser.displayName ?: "Usuário"
                     codigoCondominio = document.getString("codigoCondominio") ?: "Condomínio"
+                    nome = document.getString("nome") ?: ""
+                    email = document.getString("email") ?: currentUser.email ?: ""
                     bio = document.getString("bio") ?: ""
                     idade = document.get("idade")?.toString() ?: ""
+                    sexualidade = document.getString("sexualidade") ?: ""
+                    signo = document.getString("signo") ?: ""
 
                     val interesses = document.get("interesses") as? List<String> ?: emptyList()
                     interessesSelecionados.addAll(interesses)
@@ -91,6 +103,7 @@ fun LoginPrimeiraVez(
                 .addOnFailureListener {
                     nomeUsuario = currentUser.displayName ?: "Usuário"
                     codigoCondominio = "Condomínio"
+                    email = currentUser.email ?: ""
                     erro = if (modoEdicao) "Erro ao carregar perfil" else ""
                     carregando = false
                 }
@@ -104,7 +117,7 @@ fun LoginPrimeiraVez(
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // Cabeçalho do usuário com dados reais
+        // Cabeçalho do usuário
         CabecalhoUsuario(
             state = TelaPrincipalState(
                 nomeUsuario = nomeUsuario,
@@ -116,7 +129,7 @@ fun LoginPrimeiraVez(
         // Conteúdo principal com scroll
         Column(
             modifier = Modifier
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 20.dp)
                 .weight(1f)
                 .verticalScroll(rememberScrollState())
         ) {
@@ -127,115 +140,183 @@ fun LoginPrimeiraVez(
                         .padding(vertical = 16.dp)
                 )
             } else {
-                if (!modoEdicao) {
-                    Text(
-                        text = "Complete seu perfil",
-                        fontSize = 22.sp,
-                        color = Color.Black,
-                        modifier = Modifier.padding(bottom = 16.dp)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Foto de perfil (placeholder)
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .size(120.dp)
+                        .clip(CircleShape)
+                        .background(Color.LightGray)
+                        .border(3.dp, azul, CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = "Foto de perfil",
+                        modifier = Modifier.size(60.dp),
+                        tint = Color.Gray
                     )
                 }
 
-                // Campo de idade
-                OutlinedTextField(
-                    value = idade,
-                    onValueChange = { idade = it },
-                    label = { Text("Idade") },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp),
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    shape = RoundedCornerShape(8.dp)
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Botão alterar foto
+                Button(
+                    onClick = { /* Implementar alteração de foto */ },
+                    colors = ButtonDefaults.buttonColors(containerColor = azul),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Text("Alterar foto de perfil", color = Color.White)
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                // Campo Nome
+                CampoFormulario(
+                    valor = nome,
+                    placeholder = "Nome",
+                    onValueChange = { nome = it }
                 )
 
-                // Campo de bio
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Campo Email
+                CampoFormulario(
+                    valor = email,
+                    placeholder = "Email",
+                    onValueChange = { email = it },
+                    enabled = false // Email não editável
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Linha com Idade e Sexualidade
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CampoFormulario(
+                        valor = idade,
+                        placeholder = "Idade",
+                        onValueChange = { idade = it },
+                        modifier = Modifier.weight(1f),
+                        keyboardType = KeyboardType.Number
+                    )
+
+                    CampoFormulario(
+                        valor = sexualidade,
+                        placeholder = "Sexualidade",
+                        onValueChange = { sexualidade = it },
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Campo Signo
+                CampoFormulario(
+                    valor = signo,
+                    placeholder = "Seu signo",
+                    onValueChange = { signo = it }
+                )
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Campo Bio (maior)
                 OutlinedTextField(
                     value = bio,
                     onValueChange = { bio = it },
-                    label = { Text("Bio") },
+                    placeholder = { Text("Bio", color = Color.Gray) },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp),
-                    shape = RoundedCornerShape(8.dp)
+                        .height(100.dp),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        unfocusedBorderColor = Color.Transparent,
+                        focusedBorderColor = azul,
+                        unfocusedContainerColor = cinzaClaro,
+                        focusedContainerColor = cinzaClaro
+                    )
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(24.dp))
 
+                // Título dos interesses
                 Text(
-                    "Selecione seus interesses:",
-                    fontSize = 18.sp,
-                    color = Color.Black,
-                    modifier = Modifier.padding(bottom = 8.dp)
+                    "Selecione seus interesses",
+                    fontSize = 16.sp,
+                    color = azul,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.padding(bottom = 12.dp)
                 )
 
-                // Lista de interesses com altura limitada
-                Box(
+                // Lista de interesses com switches
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(max = 300.dp)
-                        .shadow(4.dp, RoundedCornerShape(12.dp))
-                        .background(Color.White, RoundedCornerShape(12.dp))
+                        .background(cinzaClaro, RoundedCornerShape(12.dp))
+                        .padding(16.dp)
                 ) {
-                    LazyColumn(
-                        modifier = Modifier.padding(12.dp)
-                    ) {
-                        items(interessesLista.size) { index ->
-                            val interesse = interessesLista[index]
-                            val isSelecionado = interessesSelecionados.contains(interesse)
-                            val icone = icones[interesse] ?: Icons.Default.Star
+                    interessesLista.chunked(2).forEach { par ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            par.forEach { interesse ->
+                                val isSelecionado = interessesSelecionados.contains(interesse)
+                                val icone = icones[interesse] ?: Icons.Default.Star
 
-                            val offset by animateDpAsState(
-                                targetValue = if (isSelecionado) 32.dp else 0.dp,
-                                animationSpec = tween(durationMillis = 250),
-                                label = "offsetAnim"
-                            )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .padding(vertical = 8.dp)
+                                        .toggleable(
+                                            value = isSelecionado,
+                                            onValueChange = {
+                                                if (it) interessesSelecionados.add(interesse)
+                                                else interessesSelecionados.remove(interesse)
+                                            }
+                                        )
+                                ) {
+                                    Icon(
+                                        imageVector = icone,
+                                        contentDescription = interesse,
+                                        tint = if (isSelecionado) azul else Color.Gray,
+                                        modifier = Modifier
+                                            .size(20.dp)
+                                            .padding(end = 8.dp)
+                                    )
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(vertical = 6.dp)
-                                    .toggleable(
-                                        value = isSelecionado,
-                                        onValueChange = {
+                                    Text(
+                                        text = interesse,
+                                        fontSize = 14.sp,
+                                        color = Color.Black,
+                                        modifier = Modifier.weight(1f)
+                                    )
+
+                                    Switch(
+                                        checked = isSelecionado,
+                                        onCheckedChange = {
                                             if (it) interessesSelecionados.add(interesse)
                                             else interessesSelecionados.remove(interesse)
-                                        }
-                                    )
-                            ) {
-                                Icon(
-                                    imageVector = icone,
-                                    contentDescription = interesse,
-                                    tint = if (isSelecionado) azul else Color.Black,
-                                    modifier = Modifier
-                                        .size(28.dp)
-                                        .padding(end = 12.dp)
-                                )
-
-                                Text(
-                                    text = interesse,
-                                    fontSize = 16.sp,
-                                    modifier = Modifier.weight(1f)
-                                )
-
-                                Box(
-                                    modifier = Modifier
-                                        .width(64.dp)
-                                        .height(32.dp)
-                                        .clip(RoundedCornerShape(50))
-                                        .background(if (isSelecionado) azul else Color.White)
-                                        .border(2.dp, azul, RoundedCornerShape(50))
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .offset(x = offset)
-                                            .padding(4.dp)
-                                            .size(24.dp)
-                                            .clip(CircleShape)
-                                            .background(Color.White)
-                                            .border(2.dp, azul, CircleShape)
+                                        },
+                                        colors = SwitchDefaults.colors(
+                                            checkedThumbColor = Color.White,
+                                            checkedTrackColor = azul,
+                                            uncheckedThumbColor = Color.White,
+                                            uncheckedTrackColor = Color.Gray
+                                        )
                                     )
                                 }
+                            }
+
+                            // Se o par tem apenas um item, adiciona um espaço vazio
+                            if (par.size == 1) {
+                                Spacer(modifier = Modifier.weight(1f))
                             }
                         }
                     }
@@ -245,7 +326,7 @@ fun LoginPrimeiraVez(
                     Text(
                         text = erro,
                         color = Color.Red,
-                        modifier = Modifier.padding(top = 8.dp)
+                        modifier = Modifier.padding(top = 12.dp)
                     )
                 }
 
@@ -256,13 +337,18 @@ fun LoginPrimeiraVez(
         // Botão fixo na parte inferior
         Column(
             modifier = Modifier
-                .padding(horizontal = 16.dp)
+                .padding(horizontal = 20.dp)
                 .padding(bottom = 16.dp)
         ) {
             Button(
                 onClick = {
                     if (currentUser == null) {
                         erro = "Usuário não autenticado"
+                        return@Button
+                    }
+
+                    if (nome.isBlank()) {
+                        erro = "Por favor, informe seu nome"
                         return@Button
                     }
 
@@ -284,10 +370,13 @@ fun LoginPrimeiraVez(
                     }
 
                     val dados = hashMapOf(
-                        "nome" to nomeUsuario,
+                        "nome" to nome,
+                        "email" to email,
                         "codigoCondominio" to codigoCondominio,
                         "bio" to bio,
                         "idade" to idadeNumero,
+                        "sexualidade" to sexualidade,
+                        "signo" to signo,
                         "interesses" to interessesSelecionados.toList()
                     )
 
@@ -324,4 +413,35 @@ fun LoginPrimeiraVez(
         // Rodapé do usuário
         RodapeUsuario(navController = navController, selected = "")
     }
+}
+
+@Composable
+fun CampoFormulario(
+    valor: String,
+    placeholder: String,
+    onValueChange: (String) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    keyboardType: KeyboardType = KeyboardType.Text
+) {
+    val cinzaClaro = Color(0xFFF5F5F5)
+    val azul = Color(0xFF2196F3)
+
+    OutlinedTextField(
+        value = valor,
+        onValueChange = onValueChange,
+        placeholder = { Text(placeholder, color = Color.Gray) },
+        modifier = modifier.fillMaxWidth(),
+        enabled = enabled,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            unfocusedBorderColor = Color.Transparent,
+            focusedBorderColor = azul,
+            unfocusedContainerColor = cinzaClaro,
+            focusedContainerColor = cinzaClaro,
+            disabledContainerColor = cinzaClaro.copy(alpha = 0.6f),
+            disabledTextColor = Color.Gray
+        )
+    )
 }
