@@ -9,6 +9,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.tasks.await
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import java.util.Date
 
 class ConexoesViewModel : ViewModel() {
     // Estado da tela
@@ -21,6 +25,10 @@ class ConexoesViewModel : ViewModel() {
     // Índice do perfil atual
     private var currentProfileIndex = 0
 
+    // Firebase instances
+    private val auth = FirebaseAuth.getInstance()
+    private val firestore = FirebaseFirestore.getInstance()
+
     init {
         loadProfiles()
     }
@@ -28,56 +36,82 @@ class ConexoesViewModel : ViewModel() {
     private fun loadProfiles() {
         viewModelScope.launch {
             try {
-                // Simula um tempo de carregamento
-                delay(1000)
+                _uiState.value = ConexoesUiState.Loading
 
-                // Perfis simulados com apenas Nome, Bio e Idade
-                val fakeProfiles = listOf(
-                    Profile(
-                        id = "1",
-                        name = "Helena",
-                        imageUrl = "", // Não usado, será placeholder
-                        age = 24,
-                        bio = "Apaixonada por café, boas conversas e gente que sabe rir de si mesma. Coração grande, playlist melhor ainda. Se você for legal, talvez ganhe um pedaço da minha sobremesa"
-                    ),
-                    Profile(
-                        id = "2",
-                        name = "Carlos",
-                        imageUrl = "", // Não usado, será placeholder
-                        age = 35,
-                        bio = "Corredor de fim de semana, sempre no parque aos sábados. Procuro alguém para compartilhar aventuras e cafés da manhã prolongados"
-                    ),
-                    Profile(
-                        id = "3",
-                        name = "Mariana",
-                        imageUrl = "", // Não usado, será placeholder
-                        age = 31,
-                        bio = "Organizo eventos no condomínio e adoro cozinhar. Se você aguenta meus experimentos culinários, podemos ser amigos"
-                    ),
-                    Profile(
-                        id = "4",
-                        name = "Rafael",
-                        imageUrl = "", // Não usado, será placeholder
-                        age = 28,
-                        bio = "Desenvolvedor por dia, guitarrista por noite. Procuro alguém que goste de música e não se importe com o barulho dos ensaios"
-                    ),
-                    Profile(
-                        id = "5",
-                        name = "Ana",
-                        imageUrl = "", // Não usado, será placeholder
-                        age = 26,
-                        bio = "Veterinária e defensora dos animais. Tenho 3 gatos e um coração gigante. Se você não gosta de pets, deslize para o lado"
+                val currentUser = auth.currentUser
+
+                if (currentUser == null) {
+                    _uiState.value = ConexoesUiState.Error("Usuário não autenticado")
+                    return@launch
+                }
+
+                // Primeiro, obter o código do condomínio do usuário atual
+                val currentUserDoc = firestore.collection("usuarios")
+                    .document(currentUser.uid)
+                    .get()
+                    .await()
+
+                val codigoCondominio = currentUserDoc.getString("codigoCondominio")
+                if (codigoCondominio.isNullOrBlank()) {
+                    _uiState.value = ConexoesUiState.Error("Código do condomínio não encontrado")
+                    return@launch
+                }
+
+                // Buscar outros usuários do mesmo condomínio (excluindo o usuário atual)
+                val querySnapshot = firestore.collection("usuarios")
+                    .whereEqualTo("codigoCondominio", codigoCondominio)
+                    .get()
+                    .await()
+
+                // Buscar perfis já avaliados pelo usuário atual
+                val avaliadosSnapshot = firestore.collection("conexoes")
+                    .whereEqualTo("userId", currentUser.uid)
+                    .get()
+                    .await()
+
+                val perfilsAvaliados = avaliadosSnapshot.documents.map {
+                    it.getString("likedUserId")
+                }.toSet()
+
+                val profiles = mutableListOf<Profile>()
+
+                for (document in querySnapshot.documents) {
+                    // Pular o próprio usuário
+                    if (document.id == currentUser.uid) continue
+
+                    // Pular perfis já avaliados
+                    if (perfilsAvaliados.contains(document.id)) continue
+
+                    val nome = document.getString("nome") ?: continue
+                    val idade = document.getLong("idade")?.toInt() ?: continue
+                    val bio = document.getString("bio") ?: ""
+                    val sexualidade = document.getString("sexualidade") ?: ""
+                    val signo = document.getString("signo") ?: ""
+                    val interesses = document.get("interesses") as? List<String> ?: emptyList()
+
+                    val profile = Profile(
+                        id = document.id,
+                        name = nome,
+                        imageUrl = "", // Por enquanto vazio, pode ser implementado depois
+                        age = idade,
+                        bio = if (bio.isNotEmpty()) bio else "Sem bio disponível",
+                        sexualidade = sexualidade,
+                        signo = signo,
+                        interesses = interesses
                     )
-                )
 
-                availableProfiles.addAll(fakeProfiles)
+                    profiles.add(profile)
+                }
 
-                if (fakeProfiles.isNotEmpty()) {
+                availableProfiles.clear()
+                availableProfiles.addAll(profiles)
+
+                if (profiles.isNotEmpty()) {
                     _uiState.value = ConexoesUiState.Success(
-                        currentProfile = fakeProfiles.first(),
-                        remainingProfiles = fakeProfiles.size - 1,
+                        currentProfile = profiles.first(),
+                        remainingProfiles = profiles.size - 1,
                         currentIndex = 0,
-                        totalProfiles = fakeProfiles.size
+                        totalProfiles = profiles.size
                     )
                 } else {
                     _uiState.value = ConexoesUiState.Empty
@@ -92,15 +126,64 @@ class ConexoesViewModel : ViewModel() {
 
     fun likeProfile() {
         val currentProfile = availableProfiles.getOrNull(currentProfileIndex) ?: return
+        val currentUser = auth.currentUser ?: return
+
         viewModelScope.launch {
-            // Aqui você implementaria a lógica para registrar o like no backend
-            // Por exemplo: api.likeProfile(currentProfile.id)
+            try {
+                // Salvar o like no Firestore
+                val conexaoData = hashMapOf(
+                    "userId" to currentUser.uid,
+                    "likedUserId" to currentProfile.id,
+                    "liked" to true,
+                    "timestamp" to Date()
+                )
 
-            // Simula um pequeno delay para feedback visual
-            delay(200)
+                firestore.collection("conexoes")
+                    .add(conexaoData)
+                    .await()
 
-            // Avança para o próximo perfil
-            moveToNextProfile()
+                // Simula um pequeno delay para feedback visual
+                delay(200)
+
+                // Avança para o próximo perfil
+                moveToNextProfile()
+
+            } catch (e: Exception) {
+                // Em caso de erro, ainda avança (pode implementar tratamento de erro aqui)
+                moveToNextProfile()
+            }
+        }
+    }
+
+    // Função para "dislike" (pular perfil sem criar vínculo)
+    fun dislikeProfile() {
+        val currentProfile = availableProfiles.getOrNull(currentProfileIndex) ?: return
+        val currentUser = auth.currentUser ?: return
+
+        viewModelScope.launch {
+            try {
+                // Salvar o dislike no Firestore para não mostrar novamente
+                val conexaoData = hashMapOf(
+                    "userId" to currentUser.uid,
+                    "likedUserId" to currentProfile.id,
+                    "liked" to false,
+                    "timestamp" to Date()
+                )
+
+                firestore.collection("conexoes")
+                    .add(conexaoData)
+                    .await()
+
+                // Simula um pequeno delay para feedback visual
+                delay(200)
+
+                // Avança para o próximo perfil
+                moveToNextProfile()
+
+            } catch (e: Exception) {
+                // Em caso de erro, ainda avança
+                moveToNextProfile()
+            }
         }
     }
 

@@ -153,19 +153,44 @@ fun TelaConexoes(
                                 modifier = Modifier.padding(bottom = 16.dp)
                             )
                             Text(
-                                text = "Não há mais perfis para mostrar.",
+                                text = "Você já viu todos os perfis disponíveis no seu condomínio.",
                                 textAlign = TextAlign.Center,
                                 fontSize = 16.sp,
-                                color = Color.Gray
+                                color = Color.Gray,
+                                modifier = Modifier.padding(horizontal = 16.dp)
                             )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(
+                                onClick = { viewModel.reloadProfiles() },
+                                colors = ButtonDefaults.buttonColors(containerColor = azulPrimario),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Text(
+                                    text = "Recarregar",
+                                    color = Color.White
+                                )
+                            }
                         }
                     }
                 }
 
                 is ConexoesUiState.Success -> {
                     val profile = (uiState as ConexoesUiState.Success).currentProfile
+                    val currentIndex = (uiState as ConexoesUiState.Success).currentIndex
+                    val totalProfiles = (uiState as ConexoesUiState.Success).totalProfiles
 
                     Column {
+                        // Indicador de posição
+                        Text(
+                            text = "${currentIndex + 1} de $totalProfiles",
+                            fontSize = 14.sp,
+                            color = Color.Gray,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 16.dp)
+                        )
+
                         // Card do perfil
                         Card(
                             modifier = Modifier
@@ -229,6 +254,40 @@ fun TelaConexoes(
                                         color = Color.White
                                     )
 
+                                    // Sexualidade e Signo (se disponíveis)
+                                    Row(
+                                        modifier = Modifier.padding(top = 4.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                                    ) {
+                                        if (profile.sexualidade.isNotEmpty()) {
+                                            Text(
+                                                text = profile.sexualidade,
+                                                fontSize = 12.sp,
+                                                color = Color.White.copy(alpha = 0.8f),
+                                                modifier = Modifier
+                                                    .background(
+                                                        Color.White.copy(alpha = 0.2f),
+                                                        RoundedCornerShape(8.dp)
+                                                    )
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            )
+                                        }
+
+                                        if (profile.signo.isNotEmpty()) {
+                                            Text(
+                                                text = profile.signo,
+                                                fontSize = 12.sp,
+                                                color = Color.White.copy(alpha = 0.8f),
+                                                modifier = Modifier
+                                                    .background(
+                                                        Color.White.copy(alpha = 0.2f),
+                                                        RoundedCornerShape(8.dp)
+                                                    )
+                                                    .padding(horizontal = 8.dp, vertical = 4.dp)
+                                            )
+                                        }
+                                    }
+
                                     if (profile.bio.isNotEmpty()) {
                                         Text(
                                             text = profile.bio,
@@ -237,6 +296,47 @@ fun TelaConexoes(
                                             lineHeight = 20.sp,
                                             modifier = Modifier.padding(top = 8.dp)
                                         )
+                                    }
+
+                                    // Interesses (se disponíveis)
+                                    if (profile.interesses.isNotEmpty()) {
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        // Mostrar apenas os primeiros 3 interesses para não sobrecarregar
+                                        val interessesToShow = profile.interesses.take(3)
+                                        Row(
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            modifier = Modifier.fillMaxWidth()
+                                        ) {
+                                            interessesToShow.forEach { interesse ->
+                                                Text(
+                                                    text = interesse,
+                                                    fontSize = 11.sp,
+                                                    color = Color.White,
+                                                    modifier = Modifier
+                                                        .background(
+                                                            azulPrimario.copy(alpha = 0.7f),
+                                                            RoundedCornerShape(12.dp)
+                                                        )
+                                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                )
+                                            }
+
+                                            // Indicador se há mais interesses
+                                            if (profile.interesses.size > 3) {
+                                                Text(
+                                                    text = "+${profile.interesses.size - 3}",
+                                                    fontSize = 11.sp,
+                                                    color = Color.White.copy(alpha = 0.8f),
+                                                    modifier = Modifier
+                                                        .background(
+                                                            Color.White.copy(alpha = 0.2f),
+                                                            RoundedCornerShape(12.dp)
+                                                        )
+                                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                                )
+                                            }
+                                        }
                                     }
                                 }
                             }
