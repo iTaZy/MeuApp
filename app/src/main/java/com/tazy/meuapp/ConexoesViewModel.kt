@@ -75,7 +75,9 @@ class ConexoesViewModel : ViewModel() {
                 if (fakeProfiles.isNotEmpty()) {
                     _uiState.value = ConexoesUiState.Success(
                         currentProfile = fakeProfiles.first(),
-                        remainingProfiles = fakeProfiles.size - 1
+                        remainingProfiles = fakeProfiles.size - 1,
+                        currentIndex = 0,
+                        totalProfiles = fakeProfiles.size
                     )
                 } else {
                     _uiState.value = ConexoesUiState.Empty
@@ -102,17 +104,33 @@ class ConexoesViewModel : ViewModel() {
         }
     }
 
-    fun dislikeProfile() {
-        val currentProfile = availableProfiles.getOrNull(currentProfileIndex) ?: return
-        viewModelScope.launch {
-            // Aqui você implementaria a lógica para registrar o dislike no backend
-            // Por exemplo: api.dislikeProfile(currentProfile.id)
+    // Nova função para navegar para o próximo perfil
+    fun nextProfile() {
+        if (currentProfileIndex < availableProfiles.size - 1) {
+            currentProfileIndex++
+            updateUiState()
+        }
+    }
 
-            // Simula um pequeno delay para feedback visual
-            delay(200)
+    // Nova função para navegar para o perfil anterior
+    fun previousProfile() {
+        if (currentProfileIndex > 0) {
+            currentProfileIndex--
+            updateUiState()
+        }
+    }
 
-            // Avança para o próximo perfil
-            moveToNextProfile()
+    // Função auxiliar para atualizar o estado da UI
+    private fun updateUiState() {
+        if (currentProfileIndex < availableProfiles.size) {
+            _uiState.value = ConexoesUiState.Success(
+                currentProfile = availableProfiles[currentProfileIndex],
+                remainingProfiles = availableProfiles.size - currentProfileIndex - 1,
+                currentIndex = currentProfileIndex,
+                totalProfiles = availableProfiles.size
+            )
+        } else {
+            _uiState.value = ConexoesUiState.Empty
         }
     }
 
@@ -121,12 +139,20 @@ class ConexoesViewModel : ViewModel() {
         if (currentProfileIndex < availableProfiles.size) {
             _uiState.value = ConexoesUiState.Success(
                 currentProfile = availableProfiles[currentProfileIndex],
-                remainingProfiles = availableProfiles.size - currentProfileIndex - 1
+                remainingProfiles = availableProfiles.size - currentProfileIndex - 1,
+                currentIndex = currentProfileIndex,
+                totalProfiles = availableProfiles.size
             )
         } else {
             _uiState.value = ConexoesUiState.Empty
         }
     }
+
+    // Função para verificar se pode voltar
+    fun canGoBack(): Boolean = currentProfileIndex > 0
+
+    // Função para verificar se pode avançar
+    fun canGoForward(): Boolean = currentProfileIndex < availableProfiles.size - 1
 
     // Função para recarregar perfis (útil para pull-to-refresh)
     fun reloadProfiles() {
@@ -142,7 +168,9 @@ sealed class ConexoesUiState {
     object Loading : ConexoesUiState()
     data class Success(
         val currentProfile: Profile,
-        val remainingProfiles: Int
+        val remainingProfiles: Int,
+        val currentIndex: Int,
+        val totalProfiles: Int
     ) : ConexoesUiState()
     data class Error(val message: String) : ConexoesUiState()
     object Empty : ConexoesUiState()

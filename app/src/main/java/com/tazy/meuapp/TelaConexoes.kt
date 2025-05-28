@@ -8,16 +8,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Reply
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.*
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.*
@@ -30,6 +30,7 @@ import com.tazy.meuapp.model.CabecalhoUsuario
 import com.tazy.meuapp.model.RodapeUsuario
 import com.tazy.meuapp.viewmodel.ConexoesUiState
 import com.tazy.meuapp.viewmodel.ConexoesViewModel
+import com.tazy.meuapp.R
 
 @Composable
 fun TelaConexoes(
@@ -164,146 +165,170 @@ fun TelaConexoes(
                 is ConexoesUiState.Success -> {
                     val profile = (uiState as ConexoesUiState.Success).currentProfile
 
-                    // Card do perfil
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(480.dp),
-                        shape = RoundedCornerShape(20.dp),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
-                    ) {
-                        Box(modifier = Modifier.fillMaxSize()) {
-                            // Placeholder da imagem de fundo
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color(0xFFE3F2FD),
-                                                Color(0xFFBBDEFB),
-                                                azulPrimario.copy(alpha = 0.3f)
+                    Column {
+                        // Card do perfil
+                        Card(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(480.dp),
+                            shape = RoundedCornerShape(20.dp),
+                            elevation = CardDefaults.cardElevation(defaultElevation = 8.dp)
+                        ) {
+                            Box(modifier = Modifier.fillMaxSize()) {
+                                // Placeholder da imagem de fundo
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color(0xFFE3F2FD),
+                                                    Color(0xFFBBDEFB),
+                                                    azulPrimario.copy(alpha = 0.3f)
+                                                )
                                             )
-                                        )
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                // Ícone de pessoa como placeholder
-                                Icon(
-                                    imageVector = Icons.Default.Person,
-                                    contentDescription = "Foto de perfil",
-                                    modifier = Modifier.size(120.dp),
-                                    tint = Color.White.copy(alpha = 0.7f)
-                                )
-                            }
-
-                            // Gradiente overlay na parte inferior
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(200.dp)
-                                    .align(Alignment.BottomCenter)
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color.Transparent,
-                                                Color.Black.copy(alpha = 0.8f)
-                                            )
-                                        )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    // Ícone de pessoa como placeholder
+                                    Icon(
+                                        imageVector = Icons.Default.Person,
+                                        contentDescription = "Foto de perfil",
+                                        modifier = Modifier.size(120.dp),
+                                        tint = Color.White.copy(alpha = 0.7f)
                                     )
-                            )
+                                }
 
-                            // Informações do perfil
-                            Column(
-                                modifier = Modifier
-                                    .align(Alignment.BottomStart)
-                                    .fillMaxWidth()
-                                    .padding(20.dp)
-                            ) {
-                                Text(
-                                    text = "${profile.name} | ${profile.age}",
-                                    fontSize = 24.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = Color.White
+                                // Gradiente overlay na parte inferior
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(200.dp)
+                                        .align(Alignment.BottomCenter)
+                                        .background(
+                                            Brush.verticalGradient(
+                                                colors = listOf(
+                                                    Color.Transparent,
+                                                    Color.Black.copy(alpha = 0.8f)
+                                                )
+                                            )
+                                        )
                                 )
 
-                                if (profile.bio.isNotEmpty()) {
+                                // Informações do perfil
+                                Column(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .fillMaxWidth()
+                                        .padding(20.dp)
+                                ) {
                                     Text(
-                                        text = profile.bio,
-                                        fontSize = 14.sp,
-                                        color = Color.White.copy(alpha = 0.9f),
-                                        lineHeight = 20.sp,
-                                        modifier = Modifier.padding(top = 8.dp)
+                                        text = "${profile.name} | ${profile.age}",
+                                        fontSize = 24.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
                                     )
+
+                                    if (profile.bio.isNotEmpty()) {
+                                        Text(
+                                            text = profile.bio,
+                                            fontSize = 14.sp,
+                                            color = Color.White.copy(alpha = 0.9f),
+                                            lineHeight = 20.sp,
+                                            modifier = Modifier.padding(top = 8.dp)
+                                        )
+                                    }
                                 }
                             }
                         }
+
+                        Spacer(modifier = Modifier.height(24.dp))
+
+                        // Botões de ação
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            // Botão de Voltar
+                            IconButton(
+                                onClick = { viewModel.previousProfile() },
+                                enabled = viewModel.canGoBack(),
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (viewModel.canGoBack()) Color.White
+                                        else Color.Gray.copy(alpha = 0.3f)
+                                    )
+                                    .border(
+                                        BorderStroke(
+                                            2.dp,
+                                            if (viewModel.canGoBack()) azulEscuro
+                                            else Color.Gray
+                                        ),
+                                        CircleShape
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_seta_voltar),
+                                    contentDescription = "Voltar",
+                                    tint = if (viewModel.canGoBack()) azulEscuro else Color.Gray,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+
+                            // Botão principal - Criar Vínculo
+                            Button(
+                                onClick = { viewModel.likeProfile() },
+                                modifier = Modifier
+                                    .height(52.dp)
+                                    .width(200.dp),
+                                shape = RoundedCornerShape(26.dp),
+                                colors = ButtonDefaults.buttonColors(containerColor = azulEscuro),
+                                elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+                            ) {
+                                Text(
+                                    text = "Criar Vínculo",
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
+
+                            // Botão de Avançar
+                            IconButton(
+                                onClick = { viewModel.nextProfile() },
+                                enabled = viewModel.canGoForward(),
+                                modifier = Modifier
+                                    .size(60.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (viewModel.canGoForward()) Color.White
+                                        else Color.Gray.copy(alpha = 0.3f)
+                                    )
+                                    .border(
+                                        BorderStroke(
+                                            2.dp,
+                                            if (viewModel.canGoForward()) azulEscuro
+                                            else Color.Gray
+                                        ),
+                                        CircleShape
+                                    )
+                            ) {
+                                Icon(
+                                    imageVector = ImageVector.vectorResource(id = R.drawable.ic_seta_avancar),
+                                    contentDescription = "Avançar",
+                                    tint = if (viewModel.canGoForward()) azulEscuro else Color.Gray,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
                     }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Botões de ação
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp),
-                        horizontalArrangement = Arrangement.SpaceEvenly,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Botão de Voltar/Rejeitar
-                        IconButton(
-                            onClick = { viewModel.dislikeProfile() },
-                            modifier = Modifier
-                                .size(60.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                                .border(BorderStroke(2.dp, azulEscuro), CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Reply,
-                                contentDescription = "Voltar",
-                                tint = azulEscuro,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-
-                        // Botão principal - Criar Vínculo
-                        Button(
-                            onClick = { viewModel.likeProfile() },
-                            modifier = Modifier
-                                .height(52.dp)
-                                .width(200.dp),
-                            shape = RoundedCornerShape(26.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = azulEscuro),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
-                        ) {
-                            Text(
-                                text = "Criar Vínculo",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
-                            )
-                        }
-
-                        // Botão Compartilhar
-                        IconButton(
-                            onClick = { /* ação futura */ },
-                            modifier = Modifier
-                                .size(60.dp)
-                                .clip(CircleShape)
-                                .background(Color.White)
-                                .border(BorderStroke(2.dp, azulEscuro), CircleShape)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Share,
-                                contentDescription = "Compartilhar",
-                                tint = azulEscuro,
-                                modifier = Modifier.size(28.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(16.dp))
                 }
             }
         }
