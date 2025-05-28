@@ -66,7 +66,7 @@ fun NavGraph() {
             TelaFeedNoticias(navController = navController)
         }
         composable("telaConexoes") {
-            TelaConexoes()
+            TelaConexoes(navController = navController)
         }
     }
 }

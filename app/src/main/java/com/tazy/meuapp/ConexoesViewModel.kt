@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 
 class ConexoesViewModel : ViewModel() {
     // Estado da tela
@@ -27,39 +28,61 @@ class ConexoesViewModel : ViewModel() {
     private fun loadProfiles() {
         viewModelScope.launch {
             try {
-                // Simulando carregamento de dados (substitua pela sua lógica real)
+                // Simula um tempo de carregamento
+                delay(1000)
+
+                // Perfis simulados com apenas Nome, Bio e Idade
                 val fakeProfiles = listOf(
                     Profile(
                         id = "1",
-                        name = "Ana Silva",
-                        imageUrl = "https://randomuser.me/api/portraits/women/42.jpg",
-                        age = 28,
-                        bio = "Mora no bloco B, ama animais e jardinagem"
+                        name = "Helena",
+                        imageUrl = "", // Não usado, será placeholder
+                        age = 24,
+                        bio = "Apaixonada por café, boas conversas e gente que sabe rir de si mesma. Coração grande, playlist melhor ainda. Se você for legal, talvez ganhe um pedaço da minha sobremesa"
                     ),
                     Profile(
                         id = "2",
-                        name = "Carlos Oliveira",
-                        imageUrl = "https://randomuser.me/api/portraits/men/32.jpg",
+                        name = "Carlos",
+                        imageUrl = "", // Não usado, será placeholder
                         age = 35,
-                        bio = "Corredor de fim de semana, sempre no parque aos sábados"
+                        bio = "Corredor de fim de semana, sempre no parque aos sábados. Procuro alguém para compartilhar aventuras e cafés da manhã prolongados"
                     ),
                     Profile(
                         id = "3",
-                        name = "Mariana Costa",
-                        imageUrl = "https://randomuser.me/api/portraits/women/63.jpg",
+                        name = "Mariana",
+                        imageUrl = "", // Não usado, será placeholder
                         age = 31,
-                        bio = "Organiza eventos no condomínio, adora cozinhar"
+                        bio = "Organizo eventos no condomínio e adoro cozinhar. Se você aguenta meus experimentos culinários, podemos ser amigos"
+                    ),
+                    Profile(
+                        id = "4",
+                        name = "Rafael",
+                        imageUrl = "", // Não usado, será placeholder
+                        age = 28,
+                        bio = "Desenvolvedor por dia, guitarrista por noite. Procuro alguém que goste de música e não se importe com o barulho dos ensaios"
+                    ),
+                    Profile(
+                        id = "5",
+                        name = "Ana",
+                        imageUrl = "", // Não usado, será placeholder
+                        age = 26,
+                        bio = "Veterinária e defensora dos animais. Tenho 3 gatos e um coração gigante. Se você não gosta de pets, deslize para o lado"
                     )
                 )
 
                 availableProfiles.addAll(fakeProfiles)
-                _uiState.value = ConexoesUiState.Success(
-                    currentProfile = fakeProfiles.first(),
-                    remainingProfiles = fakeProfiles.size - 1
-                )
+
+                if (fakeProfiles.isNotEmpty()) {
+                    _uiState.value = ConexoesUiState.Success(
+                        currentProfile = fakeProfiles.first(),
+                        remainingProfiles = fakeProfiles.size - 1
+                    )
+                } else {
+                    _uiState.value = ConexoesUiState.Empty
+                }
             } catch (e: Exception) {
                 _uiState.value = ConexoesUiState.Error(
-                    message = "Erro ao carregar perfis: ${e.localizedMessage}"
+                    message = "Erro ao carregar perfis: ${e.localizedMessage ?: "Erro desconhecido"}"
                 )
             }
         }
@@ -69,7 +92,12 @@ class ConexoesViewModel : ViewModel() {
         val currentProfile = availableProfiles.getOrNull(currentProfileIndex) ?: return
         viewModelScope.launch {
             // Aqui você implementaria a lógica para registrar o like no backend
-            // Por enquanto só avançamos para o próximo perfil
+            // Por exemplo: api.likeProfile(currentProfile.id)
+
+            // Simula um pequeno delay para feedback visual
+            delay(200)
+
+            // Avança para o próximo perfil
             moveToNextProfile()
         }
     }
@@ -78,7 +106,12 @@ class ConexoesViewModel : ViewModel() {
         val currentProfile = availableProfiles.getOrNull(currentProfileIndex) ?: return
         viewModelScope.launch {
             // Aqui você implementaria a lógica para registrar o dislike no backend
-            // Por enquanto só avançamos para o próximo perfil
+            // Por exemplo: api.dislikeProfile(currentProfile.id)
+
+            // Simula um pequeno delay para feedback visual
+            delay(200)
+
+            // Avança para o próximo perfil
             moveToNextProfile()
         }
     }
@@ -93,6 +126,14 @@ class ConexoesViewModel : ViewModel() {
         } else {
             _uiState.value = ConexoesUiState.Empty
         }
+    }
+
+    // Função para recarregar perfis (útil para pull-to-refresh)
+    fun reloadProfiles() {
+        currentProfileIndex = 0
+        availableProfiles.clear()
+        _uiState.value = ConexoesUiState.Loading
+        loadProfiles()
     }
 }
 
