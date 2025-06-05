@@ -1,4 +1,4 @@
-// ConexoesViewModel.kt
+// ConexoesViewModel.kt (Versão atualizada com integração de matches)
 package com.tazy.meuapp.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -18,6 +18,10 @@ class ConexoesViewModel : ViewModel() {
     // Estado da tela
     private val _uiState = MutableStateFlow<ConexoesUiState>(ConexoesUiState.Loading)
     val uiState: StateFlow<ConexoesUiState> = _uiState.asStateFlow()
+
+    // Estado para notificar match
+    private val _matchState = MutableStateFlow<MatchState>(MatchState.None)
+    val matchState: StateFlow<MatchState> = _matchState.asStateFlow()
 
     // Lista de perfis disponíveis
     private val availableProfiles = mutableListOf<Profile>()
@@ -142,6 +146,36 @@ class ConexoesViewModel : ViewModel() {
                     .add(conexaoData)
                     .await()
 
+                // Verificar se existe match mútuo
+                val mutualLikeQuery = firestore.collection("conexoes")
+                    .whereEqualTo("userId", currentProfile.id)
+                    .whereEqualTo("likedUserId", currentUser.uid)
+                    .whereEqualTo("liked", true)
+                    .get()
+                    .await()
+
+                if (mutualLikeQuery.documents.isNotEmpty()) {
+                    // MATCH! Criar documento de match
+                    val matchData = hashMapOf(
+                        "participants" to listOf(currentUser.uid, currentProfile.id),
+                        "timestamp" to Date(),
+                        "lastMessage" to "",
+                        "lastMessageTime" to null,
+                        "isActive" to true
+                    )
+
+                    firestore.collection("matches")
+                        .add(matchData)
+                        .await()
+
+                    // Notificar sobre o match
+                    _matchState.value = MatchState.NewMatch(currentProfile.name)
+
+                    // Limpar notificação após 3 segundos
+                    delay(3000)
+                    _matchState.value = MatchState.None
+                }
+
                 // Simula um pequeno delay para feedback visual
                 delay(200)
 
@@ -244,6 +278,11 @@ class ConexoesViewModel : ViewModel() {
         _uiState.value = ConexoesUiState.Loading
         loadProfiles()
     }
+
+    // Função para limpar estado de match
+    fun clearMatchState() {
+        _matchState.value = MatchState.None
+    }
 }
 
 // Estados possíveis da UI
@@ -257,4 +296,10 @@ sealed class ConexoesUiState {
     ) : ConexoesUiState()
     data class Error(val message: String) : ConexoesUiState()
     object Empty : ConexoesUiState()
+}
+
+// Estados para matches
+sealed class MatchState {
+    object None : MatchState()
+    data class NewMatch(val matchedUserName: String) : MatchState()
 }

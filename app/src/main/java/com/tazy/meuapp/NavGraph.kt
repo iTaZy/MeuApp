@@ -2,9 +2,11 @@ package com.tazy.meuapp
 
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.meuapp.ui.telas.TelaConexoes
 
 @Composable
@@ -67,6 +69,16 @@ fun NavGraph() {
         }
         composable("telaConexoes") {
             TelaConexoes(navController = navController)
+        }
+        composable(
+            route = "chat/{matchId}",
+            arguments = listOf(navArgument("matchId") { type = NavType.StringType })
+        ) { backStackEntry ->
+            val matchId = backStackEntry.arguments?.getString("matchId") ?: ""
+            TelaChatIndividual(
+                navController = navController,
+                matchId = matchId
+            )
         }
     }
 }
