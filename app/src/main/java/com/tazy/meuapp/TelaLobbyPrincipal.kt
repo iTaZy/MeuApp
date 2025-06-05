@@ -152,7 +152,7 @@ fun TelaLobbyPrincipal(
                             )
                             Spacer(modifier = Modifier.height(8.dp))
                             Text(
-                                text = "Quando você fizer coneções, suas conversas aparecerão aqui!",
+                                text = "Quando você fizer conexões, suas conversas aparecerão aqui!",
                                 fontSize = 14.sp,
                                 color = Color.Gray,
                                 textAlign = TextAlign.Center,
