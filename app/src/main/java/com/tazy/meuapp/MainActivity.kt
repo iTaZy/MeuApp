@@ -37,19 +37,19 @@ import androidx.compose.material.icons.filled.VisibilityOff
 
 // ─── CORES ─────────────────────────────────────
 
-private val BgDeep = Color(0xFF060B10)
-private val BgMid = Color(0xFF0B1422)
+val BgDeep = Color(0xFF060B10)
+val BgMid = Color(0xFF0B1422)
 
-private val AccentCyan = Color(0xFF4DD9E8)
-private val AccentPurple = Color(0xFF8B5CF6)
-private val AccentBlue = Color(0xFF3B82F6)
+val AccentCyan = Color(0xFF4DD9E8)
+val AccentPurple = Color(0xFF8B5CF6)
+val AccentBlue = Color(0xFF3B82F6)
 
-private val FieldBorder = Color(0xFFFFFFFF).copy(alpha = 0.18f)
+val FieldBorder = Color(0xFFFFFFFF).copy(alpha = 0.18f)
 private val FieldFocused = Color(0xFFFFFFFF).copy(alpha = 0.45f)
-private val FieldBg = Color(0xFF0D1A2A)
+val FieldBg = Color(0xFF0D1A2A)
 
-private val TextPrimary = Color(0xFFE8F4FF)
-private val TextSecondary = Color(0xFF8BA8C0)
+val TextPrimary = Color(0xFFE8F4FF)
+val TextSecondary = Color(0xFF8BA8C0)
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
