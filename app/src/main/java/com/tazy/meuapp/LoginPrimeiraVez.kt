@@ -1,17 +1,12 @@
 package com.tazy.meuapp
 
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,435 +14,677 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.*
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
-import com.tazy.meuapp.model.CabecalhoUsuario
 import com.tazy.meuapp.model.RodapeUsuario
+
+// ─── SUBCATEGORIAS ─────────────────────────────────────────────────────
+
+data class Subcategoria(
+    val id: String,
+    val label: String,
+    val emoji: String
+)
+
+val subcategoriasPorInteresse: Map<String, List<Subcategoria>> = mapOf(
+    "jogos" to listOf(
+        Subcategoria("lol",       "LoL",        "⚔️"),
+        Subcategoria("fortnite",  "Fortnite",   "🏗️"),
+        Subcategoria("valorant",  "Valorant",   "🎯"),
+        Subcategoria("freefire",  "Free Fire",  "🔥"),
+        Subcategoria("minecraft", "Minecraft",  "⛏️"),
+        Subcategoria("cs2",       "CS2",        "💣"),
+        Subcategoria("fifa",      "FC 25",      "⚽"),
+        Subcategoria("gta",       "GTA",        "🚗"),
+        Subcategoria("rpg",       "RPG",        "🐉"),
+        Subcategoria("outros",    "Outros",     "🕹️"),
+    ),
+    "esportes" to listOf(
+        Subcategoria("futebol",  "Futebol",  "⚽"),
+        Subcategoria("basquete", "Basquete", "🏀"),
+        Subcategoria("volei",    "Vôlei",    "🏐"),
+        Subcategoria("natacao",  "Natação",  "🏊"),
+        Subcategoria("corrida",  "Corrida",  "🏃"),
+        Subcategoria("ciclismo", "Ciclismo", "🚴"),
+        Subcategoria("lutas",    "Lutas",    "🥊"),
+        Subcategoria("tenis",    "Tênis",    "🎾"),
+        Subcategoria("crossfit", "Crossfit", "💪"),
+        Subcategoria("outros",   "Outros",   "🏅"),
+    ),
+    "musica" to listOf(
+        Subcategoria("funk",      "Funk",       "🎤"),
+        Subcategoria("rap",       "Rap/Hip-hop","🎧"),
+        Subcategoria("sertanejo", "Sertanejo",  "🤠"),
+        Subcategoria("rock",      "Rock",       "🎸"),
+        Subcategoria("pop",       "Pop",        "🌟"),
+        Subcategoria("eletronica","Eletrônica", "🎛️"),
+        Subcategoria("kpop",      "K-pop",      "🇰🇷"),
+        Subcategoria("classica",  "Clássica",   "🎻"),
+        Subcategoria("mpb",       "MPB",        "🎵"),
+        Subcategoria("outros",    "Outros",     "🎶"),
+    ),
+    "cinema" to listOf(
+        Subcategoria("acao",    "Ação",        "💥"),
+        Subcategoria("terror",  "Terror",      "👻"),
+        Subcategoria("romance", "Romance",     "💕"),
+        Subcategoria("comedia", "Comédia",     "😂"),
+        Subcategoria("anime",   "Anime",       "🌸"),
+        Subcategoria("sci_fi",  "Sci-Fi",      "🚀"),
+        Subcategoria("doc",     "Documentário","🎥"),
+        Subcategoria("hq",      "Super-herói", "🦸"),
+        Subcategoria("serie",   "Séries",      "📺"),
+        Subcategoria("outros",  "Outros",      "🎬"),
+    ),
+    "leitura" to listOf(
+        Subcategoria("ficcao",    "Ficção",    "🌌"),
+        Subcategoria("romance",   "Romance",   "💕"),
+        Subcategoria("auto_ajuda","Auto-ajuda","🧠"),
+        Subcategoria("manga",     "Mangá",     "🌸"),
+        Subcategoria("hq",        "HQ/Comics", "💥"),
+        Subcategoria("terror",    "Terror",    "👻"),
+        Subcategoria("policial",  "Policial",  "🔍"),
+        Subcategoria("biografia", "Biografia", "📖"),
+        Subcategoria("fantasia",  "Fantasia",  "🐉"),
+        Subcategoria("outros",    "Outros",    "📚"),
+    ),
+    "tecnologia" to listOf(
+        Subcategoria("programacao","Programação","👨‍💻"),
+        Subcategoria("ia",         "IA",         "🤖"),
+        Subcategoria("games_dev",  "Dev Games",  "🎮"),
+        Subcategoria("hardware",   "Hardware",   "🔧"),
+        Subcategoria("cyber",      "Cybersec",   "🔐"),
+        Subcategoria("mobile",     "Mobile",     "📱"),
+        Subcategoria("design",     "UI/UX",      "🎨"),
+        Subcategoria("crypto",     "Crypto/Web3","₿"),
+        Subcategoria("redes",      "Redes",      "🌐"),
+        Subcategoria("outros",     "Outros",     "💡"),
+    ),
+    "gastronomia" to listOf(
+        Subcategoria("churrasco",  "Churrasco",  "🥩"),
+        Subcategoria("doces",      "Doces",      "🍰"),
+        Subcategoria("saudavel",   "Saudável",   "🥗"),
+        Subcategoria("italiana",   "Italiana",   "🍝"),
+        Subcategoria("japonesa",   "Japonesa",   "🍣"),
+        Subcategoria("brasileira", "Brasileira", "🇧🇷"),
+        Subcategoria("fast_food",  "Fast Food",  "🍔"),
+        Subcategoria("vegana",     "Vegana",     "🌱"),
+        Subcategoria("drinks",     "Drinks/Bar", "🍹"),
+        Subcategoria("outros",     "Outros",     "🍴"),
+    ),
+    "academia" to listOf(
+        Subcategoria("musculacao","Musculação",    "💪"),
+        Subcategoria("crossfit",  "Crossfit",      "🏋️"),
+        Subcategoria("yoga",      "Yoga",          "🧘"),
+        Subcategoria("pilates",   "Pilates",       "🤸"),
+        Subcategoria("corrida",   "Corrida",       "🏃"),
+        Subcategoria("funcional", "Funcional",     "⚡"),
+        Subcategoria("spinning",  "Spinning",      "🚴"),
+        Subcategoria("natacao",   "Natação",       "🏊"),
+        Subcategoria("artes_m",   "Artes Marciais","🥋"),
+        Subcategoria("outros",    "Outros",        "🏅"),
+    ),
+    "viagens" to listOf(
+        Subcategoria("praias",    "Praias",      "🏖️"),
+        Subcategoria("montanhas", "Montanhas",   "⛰️"),
+        Subcategoria("europa",    "Europa",      "🏰"),
+        Subcategoria("asia",      "Ásia",        "🏯"),
+        Subcategoria("americas",  "Américas",    "🌎"),
+        Subcategoria("mochilao",  "Mochilão",    "🎒"),
+        Subcategoria("luxo",      "Viagem Luxo", "✈️"),
+        Subcategoria("road_trip", "Road Trip",   "🚗"),
+        Subcategoria("nacional",  "Brasil",      "🇧🇷"),
+        Subcategoria("outros",    "Outros",      "🗺️"),
+    ),
+    "arte" to listOf(
+        Subcategoria("desenho",    "Desenho",     "✏️"),
+        Subcategoria("pintura",    "Pintura",     "🖌️"),
+        Subcategoria("digital",    "Arte Digital","🖥️"),
+        Subcategoria("fotografia", "Fotografia",  "📷"),
+        Subcategoria("escultura",  "Escultura",   "🗿"),
+        Subcategoria("graffiti",   "Graffiti",    "🎨"),
+        Subcategoria("tatuagem",   "Tatuagem",    "💉"),
+        Subcategoria("moda",       "Moda",        "👗"),
+        Subcategoria("danca",      "Dança",       "💃"),
+        Subcategoria("outros",     "Outros",      "🎭"),
+    ),
+    "animais" to listOf(
+        Subcategoria("caes",     "Cachorros",  "🐕"),
+        Subcategoria("gatos",    "Gatos",      "🐈"),
+        Subcategoria("aves",     "Aves",       "🦜"),
+        Subcategoria("peixes",   "Peixes",     "🐠"),
+        Subcategoria("repteis",  "Répteis",    "🦎"),
+        Subcategoria("roedores", "Roedores",   "🐹"),
+        Subcategoria("exoticos", "Exóticos",   "🦋"),
+        Subcategoria("fazenda",  "Fazenda",    "🐄"),
+        Subcategoria("fauna",    "Fauna Livre","🦁"),
+        Subcategoria("outros",   "Outros",     "🐾"),
+    ),
+    "natureza" to listOf(
+        Subcategoria("trilhas",    "Trilhas",    "🥾"),
+        Subcategoria("camping",    "Camping",    "⛺"),
+        Subcategoria("surf",       "Surf",       "🏄"),
+        Subcategoria("escalada",   "Escalada",   "🧗"),
+        Subcategoria("mergulho",   "Mergulho",   "🤿"),
+        Subcategoria("jardinagem", "Jardinagem", "🌱"),
+        Subcategoria("astronomia", "Astronomia", "🔭"),
+        Subcategoria("ecologia",   "Ecologia",   "♻️"),
+        Subcategoria("cachoeiras", "Cachoeiras", "💧"),
+        Subcategoria("outros",     "Outros",     "🌿"),
+    ),
+)
+
+// ───────────────────────────────────────────────────────────────────────
 
 @Composable
 fun LoginPrimeiraVez(
     navController: NavController,
     modoEdicao: Boolean = false
 ) {
-    val firestore = FirebaseFirestore.getInstance()
-    val auth = FirebaseAuth.getInstance()
+    val firestore   = FirebaseFirestore.getInstance()
+    val auth        = FirebaseAuth.getInstance()
     val currentUser = auth.currentUser
 
-    // Estados do formulário
-    var nome by remember { mutableStateOf("") }
-    var email by remember { mutableStateOf("") }
-    var bio by remember { mutableStateOf("") }
-    var idade by remember { mutableStateOf("") }
-    var sexualidade by remember { mutableStateOf("") }
-    var signo by remember { mutableStateOf("") }
-    var nomeUsuario by remember { mutableStateOf("") }
-    var codigoCondominio by remember { mutableStateOf("") }
-    var erro by remember { mutableStateOf("") }
-    var carregando by remember { mutableStateOf(true) }
+    var nome                    by remember { mutableStateOf("") }
+    var email                   by remember { mutableStateOf("") }
+    var bio                     by remember { mutableStateOf("") }
+    var idade                   by remember { mutableStateOf("") }
+    var sexualidade             by remember { mutableStateOf("") }
+    var signo                   by remember { mutableStateOf("") }
+    var interesseAtual          by remember { mutableStateOf<String?>(null) }
+    val subcategoriasSelecionadas = remember { mutableStateListOf<String>() }
+    var erro                    by remember { mutableStateOf("") }
+    var carregando              by remember { mutableStateOf(true) }
+    var mostrarSeletorInteresse by remember { mutableStateOf(false) }
 
-    // Lista de interesses
-    val interessesLista = listOf(
-        "Esportes", "Leitura", "Música", "Filmes", "Viagens",
-        "Culinária", "Tecnologia", "Jogos", "Arte", "Fotografia"
-    )
-    val interessesSelecionados = remember { mutableStateListOf<String>() }
+    val subcategorias = interesseAtual?.let { subcategoriasPorInteresse[it] } ?: emptyList()
+    val botaoAtivo    = nome.isNotBlank() && idade.isNotBlank() && subcategoriasSelecionadas.isNotEmpty()
 
-    // Cores
-    val azul = Color(0xFF2196F3)
-    val cinzaClaro = Color(0xFFF5F5F5)
-
-    // Ícones para interesses
-    val icones: Map<String, ImageVector> = mapOf(
-        "Esportes" to Icons.Default.SportsSoccer,
-        "Leitura" to Icons.Default.MenuBook,
-        "Música" to Icons.Default.MusicNote,
-        "Filmes" to Icons.Default.Movie,
-        "Viagens" to Icons.Default.Flight,
-        "Culinária" to Icons.Default.RestaurantMenu,
-        "Tecnologia" to Icons.Default.Devices,
-        "Jogos" to Icons.Default.SportsEsports,
-        "Arte" to Icons.Default.Brush,
-        "Fotografia" to Icons.Default.PhotoCamera
-    )
-
-    // Carregar dados existentes
+    // ── carrega dados ──
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
-            firestore.collection("usuarios")
-                .document(currentUser.uid)
-                .get()
-                .addOnSuccessListener { document ->
-                    nomeUsuario = document.getString("nome") ?: currentUser.displayName ?: "Usuário"
-                    codigoCondominio = document.getString("codigoCondominio") ?: "Condomínio"
-                    nome = document.getString("nome") ?: ""
-                    email = document.getString("email") ?: currentUser.email ?: ""
-                    bio = document.getString("bio") ?: ""
-                    idade = document.get("idade")?.toString() ?: ""
-                    sexualidade = document.getString("sexualidade") ?: ""
-                    signo = document.getString("signo") ?: ""
+            firestore.collection("usuarios").document(currentUser.uid).get()
+                .addOnSuccessListener { doc ->
+                    nome        = doc.getString("nome")  ?: currentUser.displayName ?: ""
+                    email       = doc.getString("email") ?: currentUser.email ?: ""
+                    bio         = doc.getString("bio")   ?: ""
+                    idade       = doc.get("idade")?.toString() ?: ""
+                    sexualidade = doc.getString("sexualidade") ?: ""
+                    signo       = doc.getString("signo") ?: ""
+                    interesseAtual = doc.getString("interesse")
 
-                    val interesses = document.get("interesses") as? List<String> ?: emptyList()
-                    interessesSelecionados.addAll(interesses)
-
+                    // suporte a lista ou string única legada
+                    val subs = doc.get("subcategorias")
+                    when (subs) {
+                        is List<*> -> subcategoriasSelecionadas.addAll(subs.filterIsInstance<String>())
+                        is String  -> if (subs.isNotBlank()) subcategoriasSelecionadas.add(subs)
+                    }
                     carregando = false
                 }
                 .addOnFailureListener {
-                    nomeUsuario = currentUser.displayName ?: "Usuário"
-                    codigoCondominio = "Condomínio"
                     email = currentUser.email ?: ""
-                    erro = if (modoEdicao) "Erro ao carregar perfil" else ""
                     carregando = false
                 }
-        } else {
-            carregando = false
+        } else { carregando = false }
+    }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "orb")
+    val orbPulse by infiniteTransition.animateFloat(
+        initialValue = 0.6f, targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(3500, easing = EaseInOutSine), RepeatMode.Reverse),
+        label = "orbPulse"
+    )
+    val gradientButton = Brush.linearGradient(listOf(AccentPurple, AccentBlue, AccentCyan))
+
+    // ── Dialog seletor de interesse ──
+    if (mostrarSeletorInteresse) {
+        Dialog(onDismissRequest = { mostrarSeletorInteresse = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(Brush.verticalGradient(listOf(BgMid, BgDeep)))
+                    .border(1.dp, Brush.linearGradient(listOf(AccentCyan, AccentPurple)), RoundedCornerShape(20.dp))
+                    .padding(20.dp)
+            ) {
+                Column {
+                    Text(
+                        "Trocar interesse principal",
+                        fontSize = 18.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = TextPrimary,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    listaInteresses.chunked(3).forEach { rowItems ->
+                        Row(
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowItems.forEach { interesse ->
+                                val sel = interesseAtual == interesse.id
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(
+                                            if (sel)
+                                                Brush.linearGradient(listOf(AccentCyan.copy(0.2f), AccentPurple.copy(0.2f)))
+                                            else Brush.linearGradient(listOf(FieldBg, FieldBg))
+                                        )
+                                        .border(
+                                            width = if (sel) 1.5.dp else 1.dp,
+                                            brush = if (sel)
+                                                Brush.linearGradient(listOf(AccentCyan, AccentPurple))
+                                            else Brush.linearGradient(listOf(FieldBorder, FieldBorder)),
+                                            shape = RoundedCornerShape(10.dp)
+                                        )
+                                        .clickable {
+                                            if (interesseAtual != interesse.id) {
+                                                interesseAtual = interesse.id
+                                                subcategoriasSelecionadas.clear()
+                                            }
+                                            mostrarSeletorInteresse = false
+                                        }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(interesse.emoji, fontSize = 18.sp)
+                                        Spacer(Modifier.height(2.dp))
+                                        Text(
+                                            interesse.label,
+                                            fontSize = 10.sp,
+                                            fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (sel) AccentCyan else TextSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(Modifier.height(8.dp))
+                    TextButton(
+                        onClick = { mostrarSeletorInteresse = false },
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text("Cancelar", color = TextSecondary)
+                    }
+                }
+            }
         }
     }
 
-    Column(
+    // ── tela principal ──
+    Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
+            .background(Brush.verticalGradient(listOf(BgDeep, BgMid, Color(0xFF050A0F))))
     ) {
-        // Cabeçalho do usuário
-        CabecalhoUsuario(
-            state = TelaPrincipalState(
-                nomeUsuario = nomeUsuario,
-                codigoCondominio = codigoCondominio
-            ),
-            navController = navController
-        )
 
-        // Conteúdo principal com scroll
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 20.dp)
-                .weight(1f)
-                .verticalScroll(rememberScrollState())
-        ) {
-            if (carregando) {
-                CircularProgressIndicator(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(vertical = 16.dp)
-                )
-            } else {
-                Spacer(modifier = Modifier.height(16.dp))
+        Canvas(Modifier.fillMaxSize()) {
+            drawCircle(
+                brush = Brush.radialGradient(
+                    listOf(AccentCyan.copy(alpha = 0.10f * orbPulse), Color.Transparent),
+                    center = Offset(size.width * 0.1f, size.height * 0.05f),
+                    radius = size.width * 0.65f
+                ),
+                center = Offset(size.width * 0.1f, size.height * 0.05f),
+                radius = size.width * 0.65f
+            )
+            drawCircle(
+                brush = Brush.radialGradient(
+                    listOf(AccentPurple.copy(alpha = 0.13f * orbPulse), Color.Transparent),
+                    center = Offset(size.width * 0.95f, size.height * 0.7f),
+                    radius = size.width * 0.55f
+                ),
+                center = Offset(size.width * 0.95f, size.height * 0.7f),
+                radius = size.width * 0.55f
+            )
+        }
 
-                // Foto de perfil (placeholder)
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .size(120.dp)
-                        .clip(CircleShape)
-                        .background(Color.LightGray)
-                        .border(3.dp, azul, CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = "Foto de perfil",
-                        modifier = Modifier.size(60.dp),
-                        tint = Color.Gray
-                    )
-                }
+        Column(modifier = Modifier.fillMaxSize()) {
 
-                Spacer(modifier = Modifier.height(12.dp))
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
 
-                // Botão alterar foto - exato da imagem
-                Button(
-                    onClick = { /* Implementar alteração de foto */ },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1565C0)),
-                    shape = RoundedCornerShape(6.dp),
-                    modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .height(36.dp)
-                ) {
+                Spacer(Modifier.height(48.dp))
+
+                if (carregando) {
+                    CircularProgressIndicator(color = AccentCyan, modifier = Modifier.padding(32.dp))
+                } else {
+
                     Text(
-                        "Alterar foto de perfil",
-                        color = Color.White,
-                        fontSize = 14.sp
+                        if (modoEdicao) "Editar Perfil" else "Complete seu Perfil",
+                        fontSize = 28.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = TextPrimary
                     )
-                }
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                // Campo Nome
-                CampoFormulario(
-                    valor = nome,
-                    placeholder = "Nome",
-                    onValueChange = { nome = it }
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Campo Email
-                CampoFormulario(
-                    valor = email,
-                    placeholder = "Email",
-                    onValueChange = { email = it },
-                    enabled = false // Email não editável
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Linha com Idade e Sexualidade
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    CampoFormulario(
-                        valor = idade,
-                        placeholder = "Idade",
-                        onValueChange = { idade = it },
-                        modifier = Modifier.weight(1f),
-                        keyboardType = KeyboardType.Number
+                    Text(
+                        if (modoEdicao) "Atualize suas informações" else "Conte um pouco sobre você",
+                        fontSize = 13.sp,
+                        color = TextSecondary,
+                        modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
                     )
 
-                    CampoFormulario(
-                        valor = sexualidade,
-                        placeholder = "Sexualidade",
-                        onValueChange = { sexualidade = it },
-                        modifier = Modifier.weight(1f)
+                    // ── foto ──
+                    Box(
+                        modifier = Modifier
+                            .size(100.dp)
+                            .clip(CircleShape)
+                            .background(Brush.radialGradient(listOf(AccentCyan.copy(0.2f), FieldBg)))
+                            .border(2.dp, Brush.linearGradient(listOf(AccentCyan, AccentPurple)), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Person, null, modifier = Modifier.size(48.dp), tint = TextSecondary)
+                    }
+
+                    Spacer(Modifier.height(10.dp))
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(FieldBg)
+                            .border(1.dp, Brush.linearGradient(listOf(AccentCyan, AccentPurple)), RoundedCornerShape(20.dp))
+                            .clickable { }
+                            .padding(horizontal = 16.dp, vertical = 8.dp)
+                    ) {
+                        Text("Alterar foto de perfil", color = AccentCyan, fontSize = 13.sp)
+                    }
+
+                    Spacer(Modifier.height(28.dp))
+
+                    // ── dados pessoais ──
+                    SectionLabel("Dados pessoais", AccentCyan, AccentPurple)
+                    Spacer(Modifier.height(12.dp))
+
+                    KlancoreTextField(value = nome, onValueChange = { nome = it }, placeholder = "Nome completo", icon = Icons.Default.Person)
+                    Spacer(Modifier.height(10.dp))
+
+                    OutlinedTextField(
+                        value = email, onValueChange = {}, enabled = false,
+                        placeholder = { Text("E-mail", color = TextSecondary) },
+                        leadingIcon = { Icon(Icons.Default.Email, null, tint = TextSecondary) },
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(FieldBg),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            disabledBorderColor = FieldBorder, disabledTextColor = TextSecondary,
+                            disabledContainerColor = FieldBg, disabledLeadingIconColor = TextSecondary
+                        ), singleLine = true
                     )
-                }
+                    Spacer(Modifier.height(10.dp))
 
-                Spacer(modifier = Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OutlinedTextField(
+                            value = idade, onValueChange = { if (it.length <= 3) idade = it },
+                            placeholder = { Text("Idade", color = TextSecondary) },
+                            leadingIcon = { Icon(Icons.Default.Cake, null, tint = TextSecondary) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(12.dp)).background(FieldBg),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = FieldFocused, unfocusedBorderColor = FieldBorder,
+                                focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                                cursorColor = AccentCyan, focusedContainerColor = FieldBg, unfocusedContainerColor = FieldBg
+                            ), singleLine = true
+                        )
+                        OutlinedTextField(
+                            value = sexualidade, onValueChange = { sexualidade = it },
+                            placeholder = { Text("Sexualidade", color = TextSecondary) },
+                            leadingIcon = { Icon(Icons.Default.Favorite, null, tint = TextSecondary) },
+                            modifier = Modifier.weight(1.4f).clip(RoundedCornerShape(12.dp)).background(FieldBg),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = FieldFocused, unfocusedBorderColor = FieldBorder,
+                                focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                                cursorColor = AccentCyan, focusedContainerColor = FieldBg, unfocusedContainerColor = FieldBg
+                            ), singleLine = true
+                        )
+                    }
+                    Spacer(Modifier.height(10.dp))
 
-                // Campo Signo
-                CampoFormulario(
-                    valor = signo,
-                    placeholder = "Seu signo",
-                    onValueChange = { signo = it }
-                )
+                    KlancoreTextField(value = signo, onValueChange = { signo = it }, placeholder = "Seu signo", icon = Icons.Default.Stars)
+                    Spacer(Modifier.height(10.dp))
 
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Campo Bio (maior)
-                OutlinedTextField(
-                    value = bio,
-                    onValueChange = { bio = it },
-                    placeholder = { Text("Bio", color = Color.Gray) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(100.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        unfocusedBorderColor = Color.Transparent,
-                        focusedBorderColor = azul,
-                        unfocusedContainerColor = cinzaClaro,
-                        focusedContainerColor = cinzaClaro
+                    OutlinedTextField(
+                        value = bio, onValueChange = { if (it.length <= 200) bio = it },
+                        placeholder = { Text("Bio (máx. 200 caracteres)", color = TextSecondary) },
+                        modifier = Modifier.fillMaxWidth().height(110.dp).clip(RoundedCornerShape(12.dp)).background(FieldBg),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = FieldFocused, unfocusedBorderColor = FieldBorder,
+                            focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                            cursorColor = AccentCyan, focusedContainerColor = FieldBg, unfocusedContainerColor = FieldBg
+                        )
                     )
-                )
 
-                Spacer(modifier = Modifier.height(24.dp))
+                    Spacer(Modifier.height(28.dp))
 
-                // Título dos interesses
-                Text(
-                    "Selecione seus interesses",
-                    fontSize = 16.sp,
-                    color = azul,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
+                    // ── interesse principal (clicável para trocar) ──
+                    SectionLabel("Interesse principal", AccentCyan, AccentPurple)
+                    Text(
+                        "Toque no card para trocar",
+                        fontSize = 12.sp,
+                        color = TextSecondary,
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp)
+                    )
 
-                // Lista de interesses com switches
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(cinzaClaro, RoundedCornerShape(12.dp))
-                        .padding(16.dp)
-                ) {
-                    interessesLista.chunked(2).forEach { par ->
+                    val interesseObj = listaInteresses.find { it.id == interesseAtual }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(
+                                Brush.linearGradient(listOf(AccentCyan.copy(0.15f), AccentPurple.copy(0.15f)))
+                            )
+                            .border(1.5.dp, Brush.linearGradient(listOf(AccentCyan, AccentPurple)), RoundedCornerShape(12.dp))
+                            .clickable { mostrarSeletorInteresse = true }
+                            .padding(16.dp)
+                    ) {
                         Row(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
                         ) {
-                            par.forEach { interesse ->
-                                val isSelecionado = interessesSelecionados.contains(interesse)
-                                val icone = icones[interesse] ?: Icons.Default.Star
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(interesseObj?.emoji ?: "❓", fontSize = 28.sp)
+                                Spacer(Modifier.width(12.dp))
+                                Text(
+                                    interesseObj?.label ?: "Escolher interesse",
+                                    fontSize = 16.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AccentCyan
+                                )
+                            }
+                            Icon(
+                                Icons.Default.Edit,
+                                contentDescription = "Trocar",
+                                tint = TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
 
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(vertical = 8.dp)
-                                        .toggleable(
-                                            value = isSelecionado,
-                                            onValueChange = {
-                                                if (it) interessesSelecionados.add(interesse)
-                                                else interessesSelecionados.remove(interesse)
-                                            }
-                                        )
-                                ) {
-                                    Icon(
-                                        imageVector = icone,
-                                        contentDescription = interesse,
-                                        tint = if (isSelecionado) azul else Color.Gray,
+                    // ── subcategorias (múltipla seleção) ──
+                    AnimatedVisibility(
+                        visible = subcategorias.isNotEmpty(),
+                        enter = fadeIn() + expandVertically(),
+                        exit = fadeOut() + shrinkVertically()
+                    ) {
+                        Column {
+                            Spacer(Modifier.height(24.dp))
+
+                            SectionLabel("Especialidades", AccentPurple, AccentCyan)
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(
+                                    "Selecione uma ou mais",
+                                    fontSize = 12.sp,
+                                    color = TextSecondary
+                                )
+                                // contador
+                                if (subcategoriasSelecionadas.isNotEmpty()) {
+                                    Box(
                                         modifier = Modifier
-                                            .size(20.dp)
-                                            .padding(end = 8.dp)
-                                    )
-
-                                    Text(
-                                        text = interesse,
-                                        fontSize = 14.sp,
-                                        color = Color.Black,
-                                        modifier = Modifier.weight(1f)
-                                    )
-
-                                    Switch(
-                                        checked = isSelecionado,
-                                        onCheckedChange = {
-                                            if (it) interessesSelecionados.add(interesse)
-                                            else interessesSelecionados.remove(interesse)
-                                        },
-                                        colors = SwitchDefaults.colors(
-                                            checkedThumbColor = Color.White,
-                                            checkedTrackColor = azul,
-                                            uncheckedThumbColor = Color.White,
-                                            uncheckedTrackColor = Color.Gray
+                                            .clip(RoundedCornerShape(20.dp))
+                                            .background(Brush.linearGradient(listOf(AccentPurple, AccentCyan)))
+                                            .padding(horizontal = 10.dp, vertical = 3.dp)
+                                    ) {
+                                        Text(
+                                            "${subcategoriasSelecionadas.size} selecionada(s)",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
                                         )
-                                    )
+                                    }
                                 }
                             }
 
-                            // Se o par tem apenas um item, adiciona um espaço vazio
-                            if (par.size == 1) {
-                                Spacer(modifier = Modifier.weight(1f))
+                            subcategorias.chunked(3).forEach { rowItems ->
+                                Row(
+                                    Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    rowItems.forEach { sub ->
+                                        val sel = subcategoriasSelecionadas.contains(sub.id)
+                                        val scaleCard by animateFloatAsState(if (sel) 1.05f else 1f, label = "sub${sub.id}")
+
+                                        Box(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .scale(scaleCard)
+                                                .clip(RoundedCornerShape(12.dp))
+                                                .background(
+                                                    if (sel)
+                                                        Brush.linearGradient(listOf(AccentPurple.copy(0.2f), AccentCyan.copy(0.2f)))
+                                                    else Brush.linearGradient(listOf(FieldBg, FieldBg))
+                                                )
+                                                .border(
+                                                    width = if (sel) 1.5.dp else 1.dp,
+                                                    brush = if (sel)
+                                                        Brush.linearGradient(listOf(AccentPurple, AccentCyan))
+                                                    else Brush.linearGradient(listOf(FieldBorder, FieldBorder)),
+                                                    shape = RoundedCornerShape(12.dp)
+                                                )
+                                                .clickable {
+                                                    if (sel) subcategoriasSelecionadas.remove(sub.id)
+                                                    else subcategoriasSelecionadas.add(sub.id)
+                                                }
+                                                .padding(vertical = 10.dp),
+                                            contentAlignment = Alignment.Center
+                                        ) {
+                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                                Text(sub.emoji, fontSize = 20.sp)
+                                                Spacer(Modifier.height(3.dp))
+                                                Text(
+                                                    sub.label,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                                                    color = if (sel) AccentPurple else TextSecondary
+                                                )
+                                            }
+                                        }
+                                    }
+                                    repeat(3 - rowItems.size) { Spacer(modifier = Modifier.weight(1f)) }
+                                }
                             }
                         }
                     }
-                }
 
-                if (erro.isNotEmpty()) {
+                    if (erro.isNotEmpty()) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(erro, color = Color.Red, fontSize = 13.sp)
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+                }
+            }
+
+            // ── botão fixo ──
+            Column(modifier = Modifier.padding(horizontal = 24.dp).padding(bottom = 12.dp)) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(54.dp)
+                        .shadow(if (botaoAtivo) 10.dp else 0.dp, RoundedCornerShape(32.dp))
+                        .clip(RoundedCornerShape(32.dp))
+                        .background(
+                            if (botaoAtivo) gradientButton
+                            else Brush.linearGradient(listOf(Color.Gray.copy(0.4f), Color.Gray.copy(0.4f)))
+                        )
+                        .clickable(enabled = botaoAtivo) {
+                            if (currentUser == null) { erro = "Usuário não autenticado"; return@clickable }
+                            val idadeNum = idade.toIntOrNull()
+                            if (idadeNum == null || idadeNum <= 0 || idadeNum > 120) { erro = "Idade inválida"; return@clickable }
+
+                            val dados = hashMapOf(
+                                "nome"           to nome,
+                                "email"          to email,
+                                "bio"            to bio,
+                                "idade"          to idadeNum,
+                                "sexualidade"    to sexualidade,
+                                "signo"          to signo,
+                                "interesse"      to interesseAtual,
+                                "subcategorias"  to subcategoriasSelecionadas.toList()
+                            )
+
+                            firestore.collection("usuarios").document(currentUser.uid)
+                                .set(dados, SetOptions.merge())
+                                .addOnSuccessListener {
+                                    if (modoEdicao) navController.popBackStack()
+                                    else navController.navigate("lobbyPrincipal") {
+                                        popUpTo("loginPrimeiraVez") { inclusive = true }
+                                    }
+                                }
+                                .addOnFailureListener { erro = "Erro ao salvar. Tente novamente." }
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = erro,
-                        color = Color.Red,
-                        modifier = Modifier.padding(top = 12.dp)
+                        if (modoEdicao) "Salvar Alterações" else "Finalizar Cadastro",
+                        color = Color.White, fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp, letterSpacing = 1.sp
                     )
                 }
-
-                Spacer(modifier = Modifier.height(24.dp))
             }
+
+            RodapeUsuario(navController = navController, selected = "")
         }
-
-        // Botão fixo na parte inferior
-        Column(
-            modifier = Modifier
-                .padding(horizontal = 20.dp)
-                .padding(bottom = 16.dp)
-        ) {
-            Button(
-                onClick = {
-                    if (currentUser == null) {
-                        erro = "Usuário não autenticado"
-                        return@Button
-                    }
-
-                    if (nome.isBlank()) {
-                        erro = "Por favor, informe seu nome"
-                        return@Button
-                    }
-
-                    if (idade.isBlank()) {
-                        erro = "Por favor, informe sua idade"
-                        return@Button
-                    }
-
-                    val idadeNumero = try {
-                        idade.toInt()
-                    } catch (e: NumberFormatException) {
-                        erro = "Idade inválida"
-                        return@Button
-                    }
-
-                    if (idadeNumero <= 0 || idadeNumero > 120) {
-                        erro = "Idade deve estar entre 1 e 120 anos"
-                        return@Button
-                    }
-
-                    val dados = hashMapOf(
-                        "nome" to nome,
-                        "email" to email,
-                        "codigoCondominio" to codigoCondominio,
-                        "bio" to bio,
-                        "idade" to idadeNumero,
-                        "sexualidade" to sexualidade,
-                        "signo" to signo,
-                        "interesses" to interessesSelecionados.toList()
-                    )
-
-                    firestore.collection("usuarios")
-                        .document(currentUser.uid)
-                        .set(dados, SetOptions.merge())
-                        .addOnSuccessListener {
-                            if (modoEdicao) {
-                                navController.popBackStack()
-                            } else {
-                                navController.navigate("lobbyPrincipal") {
-                                    popUpTo("loginPrimeiraVez") { inclusive = true }
-                                }
-                            }
-                        }
-                        .addOnFailureListener {
-                            erro = "Erro ao salvar alterações"
-                        }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(25.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = azul)
-            ) {
-                Text(
-                    text = if (modoEdicao) "Salvar Alterações" else "Finalizar Cadastro",
-                    color = Color.White,
-                    fontSize = 16.sp
-                )
-            }
-        }
-
-        // Rodapé do usuário
-        RodapeUsuario(navController = navController, selected = "")
     }
 }
 
 @Composable
-fun CampoFormulario(
-    valor: String,
-    placeholder: String,
-    onValueChange: (String) -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    keyboardType: KeyboardType = KeyboardType.Text
-) {
-    val cinzaClaro = Color(0xFFF5F5F5)
-    val azul = Color(0xFF2196F3)
-
-    OutlinedTextField(
-        value = valor,
-        onValueChange = onValueChange,
-        placeholder = { Text(placeholder, color = Color.Gray) },
-        modifier = modifier.fillMaxWidth(),
-        enabled = enabled,
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        shape = RoundedCornerShape(12.dp),
-        colors = OutlinedTextFieldDefaults.colors(
-            unfocusedBorderColor = Color.Transparent,
-            focusedBorderColor = azul,
-            unfocusedContainerColor = cinzaClaro,
-            focusedContainerColor = cinzaClaro,
-            disabledContainerColor = cinzaClaro.copy(alpha = 0.6f),
-            disabledTextColor = Color.Gray
+private fun SectionLabel(text: String, color1: Color, color2: Color) {
+    Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Box(
+            modifier = Modifier
+                .width(3.dp).height(18.dp)
+                .background(Brush.verticalGradient(listOf(color1, color2)), RoundedCornerShape(2.dp))
         )
-    )
+        Spacer(Modifier.width(8.dp))
+        Text(text, fontWeight = FontWeight.SemiBold, color = TextPrimary, fontSize = 15.sp)
+    }
 }

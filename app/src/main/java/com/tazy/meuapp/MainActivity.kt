@@ -45,7 +45,7 @@ val AccentPurple = Color(0xFF8B5CF6)
 val AccentBlue = Color(0xFF3B82F6)
 
 val FieldBorder = Color(0xFFFFFFFF).copy(alpha = 0.18f)
-private val FieldFocused = Color(0xFFFFFFFF).copy(alpha = 0.45f)
+val FieldFocused = Color(0xFFFFFFFF).copy(alpha = 0.45f)
 val FieldBg = Color(0xFF0D1A2A)
 
 val TextPrimary = Color(0xFFE8F4FF)
