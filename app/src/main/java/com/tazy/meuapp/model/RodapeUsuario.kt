@@ -8,33 +8,48 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.tazy.meuapp.R
+import com.tazy.meuapp.AccentCyan
+import com.tazy.meuapp.AccentPurple
+import com.tazy.meuapp.BgDeep
 
 @Composable
 fun RodapeUsuario(navController: NavController, selected: String) {
-    Column(
-        modifier = Modifier.fillMaxWidth()
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(elevation = 20.dp)
+            .background(
+                Brush.verticalGradient(listOf(Color(0xFF0B1422), BgDeep))
+            )
     ) {
-        // Linha azul clara no topo
+        // linha gradiente no topo
         Box(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(1.dp)
-                .background(Color(0xFFB3E5FC)) // Azul claro
+                .align(Alignment.TopCenter)
+                .background(
+                    Brush.horizontalGradient(
+                        listOf(AccentCyan.copy(alpha = 0.6f), AccentPurple.copy(alpha = 0.6f))
+                    )
+                )
         )
 
-        // Rodapé com os botões
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.White)
-                .padding(top = 12.dp, bottom = 16.dp),
+                .padding(top = 10.dp, bottom = 16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.Bottom
         ) {
@@ -67,10 +82,12 @@ fun RodapeUsuario(navController: NavController, selected: String) {
 }
 
 @Composable
-fun BotaoRodapePersonalizado(iconRes: Int, label: String, isSelected: Boolean, onClick: () -> Unit) {
-    val backgroundColor = if (isSelected) Color(0xFF1976D2) else Color(0xFF2196F3)
-    val textColor = if (isSelected) Color(0xFF1976D2) else Color.Gray
-
+fun BotaoRodapePersonalizado(
+    iconRes: Int,
+    label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit
+) {
     Column(
         modifier = Modifier
             .clickable { onClick() }
@@ -79,24 +96,36 @@ fun BotaoRodapePersonalizado(iconRes: Int, label: String, isSelected: Boolean, o
     ) {
         Box(
             modifier = Modifier
-                .size(38.dp)
-                .offset(y = (-6).dp)
-                .background(color = backgroundColor, shape = CircleShape),
+                .size(40.dp)
+                .clip(CircleShape)
+                .background(
+                    if (isSelected)
+                        Brush.linearGradient(listOf(AccentCyan, AccentPurple))
+                    else
+                        Brush.linearGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.05f),
+                                Color.White.copy(alpha = 0.05f)
+                            )
+                        )
+                ),
             contentAlignment = Alignment.Center
         ) {
             Icon(
                 painter = painterResource(id = iconRes),
                 contentDescription = label,
                 modifier = Modifier.size(20.dp),
-                tint = Color.White
+                tint = if (isSelected) Color.White else Color.White.copy(alpha = 0.4f)
             )
         }
-        Spacer(modifier = Modifier.height(4.dp)) // Aproxima o texto do botão
+
+        Spacer(modifier = Modifier.height(5.dp))
+
         Text(
             text = label,
-            fontSize = 12.sp,
-            color = textColor
+            fontSize = 11.sp,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = if (isSelected) AccentCyan else Color.White.copy(alpha = 0.4f)
         )
     }
 }
-
