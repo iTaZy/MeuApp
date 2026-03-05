@@ -28,6 +28,7 @@ import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 
+
 // ─── Paleta KLANCORE ───────────────────────────────────────────────────────
 private val BgDeep        = Color(0xFF060B10)
 private val BgMid         = Color(0xFF0B1422)
@@ -196,7 +197,7 @@ fun LoginScreen(
                     "CORE",
                     fontSize      = 32.sp,
                     fontWeight    = FontWeight.ExtraBold,
-                    color         = TextPrimary,
+                    color         = AccentBlue,
                     letterSpacing = 3.sp
                 )
             }
