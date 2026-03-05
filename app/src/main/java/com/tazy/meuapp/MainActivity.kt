@@ -7,13 +7,18 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -27,26 +32,35 @@ import com.tazy.meuapp.ui.theme.MeuAppTheme
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 
+// ─── CORES ─────────────────────────────────────
 
-// ─── Paleta KLANCORE ───────────────────────────────────────────────────────
-private val BgDeep        = Color(0xFF060B10)
-private val BgMid         = Color(0xFF0B1422)
-private val AccentCyan    = Color(0xFF4DD9E8)
-private val AccentPurple  = Color(0xFF8B5CF6)
-private val AccentBlue    = Color(0xFF3B82F6)
-private val FieldBorder   = Color(0xFFFFFFFF).copy(alpha = 0.18f)
-private val FieldFocused  = Color(0xFFFFFFFF).copy(alpha = 0.45f)
-private val FieldBg       = Color(0xFF0D1A2A).copy(alpha = 0.75f)
-private val TextPrimary   = Color(0xFFE8F4FF)
+private val BgDeep = Color(0xFF060B10)
+private val BgMid = Color(0xFF0B1422)
+
+private val AccentCyan = Color(0xFF4DD9E8)
+private val AccentPurple = Color(0xFF8B5CF6)
+private val AccentBlue = Color(0xFF3B82F6)
+
+private val FieldBorder = Color(0xFFFFFFFF).copy(alpha = 0.18f)
+private val FieldFocused = Color(0xFFFFFFFF).copy(alpha = 0.45f)
+private val FieldBg = Color(0xFF0D1A2A)
+
+private val TextPrimary = Color(0xFFE8F4FF)
 private val TextSecondary = Color(0xFF8BA8C0)
-private val ButtonBlue    = Color(0xFF4A8FE0)
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContent { MeuAppTheme { NavGraph() } }
+
+        setContent {
+            MeuAppTheme {
+                NavGraph()
+            }
+        }
     }
 }
 
@@ -55,280 +69,339 @@ fun LoginScreen(
     onCriarConta: () -> Unit,
     onLoginSucesso: () -> Unit
 ) {
-    var email      by remember { mutableStateOf("") }
-    var senha      by remember { mutableStateOf("") }
-    var erro       by remember { mutableStateOf<String?>(null) }
+
+    var email by remember { mutableStateOf("") }
+    var senha by remember { mutableStateOf("") }
+    var erro by remember { mutableStateOf<String?>(null) }
     var carregando by remember { mutableStateOf(false) }
 
-    val auth  = FirebaseAuth.getInstance()
+    val auth = FirebaseAuth.getInstance()
     val scope = rememberCoroutineScope()
 
-    // ── Animações ──────────────────────────────────────────────────────────
-    val infiniteTransition = rememberInfiniteTransition(label = "bg")
+    val infiniteTransition = rememberInfiniteTransition()
 
     val orbPulse by infiniteTransition.animateFloat(
-        initialValue = 0.6f, targetValue = 1f,
+        initialValue = 0.6f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
-            tween(3500, easing = EaseInOutSine), RepeatMode.Reverse
-        ), label = "orb"
+            tween(3500, easing = EaseInOutSine),
+            RepeatMode.Reverse
+        )
     )
 
-    // Logo: flutuação vertical suave
     val logoFloat by infiniteTransition.animateFloat(
-        initialValue = 0f, targetValue = -10f,
+        initialValue = 0f,
+        targetValue = -10f,
         animationSpec = infiniteRepeatable(
-            tween(2800, easing = EaseInOutSine), RepeatMode.Reverse
-        ), label = "float"
+            tween(3000, easing = EaseInOutSine),
+            RepeatMode.Reverse
+        )
     )
 
-    // Halo da logo pulsante
-    val logoGlow by infiniteTransition.animateFloat(
-        initialValue = 0.4f, targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            tween(2000, easing = EaseInOutSine), RepeatMode.Reverse
-        ), label = "glow"
+    val gradientButton = Brush.linearGradient(
+        listOf(
+            AccentPurple,
+            AccentBlue,
+            AccentCyan
+        )
     )
 
-    // Animação de entrada (fade + slide)
-    var visible by remember { mutableStateOf(false) }
-    val enterAlpha by animateFloatAsState(
-        targetValue = if (visible) 1f else 0f,
-        animationSpec = tween(900, easing = FastOutSlowInEasing),
-        label = "alpha"
+    val scale by animateFloatAsState(
+        if (carregando) 0.95f else 1f
     )
-    val enterSlide by animateFloatAsState(
-        targetValue = if (visible) 0f else 50f,
-        animationSpec = tween(900, easing = FastOutSlowInEasing),
-        label = "slide"
-    )
-    LaunchedEffect(Unit) { visible = true }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Brush.verticalGradient(listOf(BgDeep, BgMid, Color(0xFF050A0F))))
+            .background(
+                Brush.verticalGradient(
+                    listOf(
+                        BgDeep,
+                        BgMid,
+                        Color(0xFF050A0F)
+                    )
+                )
+            )
     ) {
 
-        // ── Orbs de luz no background ──────────────────────────────────────
+        // ───── ORBS DE FUNDO ─────
+
         Canvas(Modifier.fillMaxSize()) {
+
             drawCircle(
                 brush = Brush.radialGradient(
-                    listOf(AccentCyan.copy(alpha = 0.13f * orbPulse), Color.Transparent),
-                    center = Offset(size.width * 0.1f, size.height * 0.12f),
+                    listOf(
+                        AccentCyan.copy(alpha = 0.15f * orbPulse),
+                        Color.Transparent
+                    ),
+                    center = Offset(size.width * 0.2f, size.height * 0.2f),
+                    radius = size.width * 0.7f
+                ),
+                center = Offset(size.width * 0.2f, size.height * 0.2f),
+                radius = size.width * 0.7f
+            )
+
+            drawCircle(
+                brush = Brush.radialGradient(
+                    listOf(
+                        AccentPurple.copy(alpha = 0.18f * orbPulse),
+                        Color.Transparent
+                    ),
+                    center = Offset(size.width * 0.9f, size.height * 0.4f),
                     radius = size.width * 0.6f
                 ),
-                center = Offset(size.width * 0.1f, size.height * 0.12f),
+                center = Offset(size.width * 0.9f, size.height * 0.4f),
                 radius = size.width * 0.6f
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    listOf(AccentPurple.copy(alpha = 0.16f * orbPulse), Color.Transparent),
-                    center = Offset(size.width * 0.9f, size.height * 0.45f),
-                    radius = size.width * 0.55f
-                ),
-                center = Offset(size.width * 0.9f, size.height * 0.45f),
-                radius = size.width * 0.55f
-            )
-            drawCircle(
-                brush = Brush.radialGradient(
-                    listOf(AccentBlue.copy(alpha = 0.10f * orbPulse), Color.Transparent),
-                    center = Offset(size.width * 0.15f, size.height * 0.85f),
-                    radius = size.width * 0.5f
-                ),
-                center = Offset(size.width * 0.15f, size.height * 0.85f),
-                radius = size.width * 0.5f
             )
         }
 
-        // ── Conteúdo principal ─────────────────────────────────────────────
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 32.dp)
-                .graphicsLayer {
-                    alpha        = enterAlpha
-                    translationY = enterSlide
-                },
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
 
-            // ── Logo maior com halo pulsante e flutuação ───────────────────
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .offset(y = logoFloat.dp)
-                    .fillMaxWidth()
-                    .height(260.dp)
-            ) {
-                // Halo externo
-                Canvas(Modifier.fillMaxSize()) {
-                    drawCircle(
-                        brush = Brush.radialGradient(
-                            listOf(
-                                AccentPurple.copy(alpha = 0.28f * logoGlow),
-                                AccentCyan.copy(alpha = 0.10f * logoGlow),
-                                Color.Transparent
-                            ),
-                            center = center,
-                            radius = size.minDimension * 0.52f
-                        ),
-                        radius = size.minDimension * 0.52f
-                    )
-                }
-                Image(
-                    painter            = painterResource(id = R.drawable.logo_klancore),
-                    contentDescription = "KLANCORE Logo",
-                    modifier           = Modifier.size(500.dp)
-                )
-            }
-
-            // ── Wordmark ───────────────────────────────────────────────────
-            Row(modifier = Modifier.padding(bottom = 24.dp)) {
-                Text(
-                    "KLAN",
-                    fontSize      = 32.sp,
-                    fontWeight    = FontWeight.ExtraBold,
-                    color         = AccentPurple,
-                    letterSpacing = 3.sp
-                )
-                Text(
-                    "CORE",
-                    fontSize      = 32.sp,
-                    fontWeight    = FontWeight.ExtraBold,
-                    color         = AccentBlue,
-                    letterSpacing = 3.sp
-                )
-            }
-
-            // ── Campos ─────────────────────────────────────────────────────
-            KlancoreTextField(
-                value = email, onValueChange = { email = it }, placeholder = "E-mail"
+            // LOGO
+            Image(
+                painter = painterResource(id = R.drawable.logo_klancore),
+                contentDescription = "Logo",
+                modifier = Modifier.size(180.dp)
             )
-            Spacer(Modifier.height(12.dp))
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // NOME (substitui o Row com os Text)
+            Image(
+                painter = painterResource(id = R.drawable.klancore_text),
+                contentDescription = "Klancore",
+                modifier = Modifier
+                    .width(300.dp)
+                    .height(80.dp)
+            )
+
+            Spacer(modifier = Modifier.height(40.dp))
+
+            // ───── EMAIL ─────
+
             KlancoreTextField(
-                value = senha, onValueChange = { senha = it },
-                placeholder = "Senha", isPassword = true
+                value = email,
+                onValueChange = { email = it },
+                placeholder = "E-mail",
+                icon = Icons.Default.Email
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // ───── SENHA ─────
+
+            KlancoreTextField(
+                value = senha,
+                onValueChange = { senha = it },
+                placeholder = "Senha",
+                icon = Icons.Default.Lock,
+                isPassword = true
             )
 
             Text(
                 "Esqueci minha senha",
-                color    = TextSecondary,
+                color = TextSecondary,
                 fontSize = 13.sp,
                 modifier = Modifier
                     .align(Alignment.End)
-                    .padding(top = 10.dp, bottom = 28.dp)
-                    .clickable { /* TODO */ }
+                    .padding(top = 10.dp, bottom = 30.dp)
             )
 
-            // ── Erro com card sutil ────────────────────────────────────────
+            // ───── ERRO ─────
+
             erro?.let {
-                Surface(
-                    shape    = RoundedCornerShape(8.dp),
-                    color    = Color(0xFFFF4444).copy(alpha = 0.10f),
-                    border   = BorderStroke(1.dp, Color(0xFFFF4444).copy(alpha = 0.35f)),
-                    modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp)
-                ) {
-                    Text(
-                        it, color = Color(0xFFFF7070), fontSize = 13.sp,
-                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp)
-                    )
-                }
+
+                Text(
+                    it,
+                    color = Color.Red,
+                    modifier = Modifier.padding(bottom = 10.dp)
+                )
             }
 
-            // ── Botão Entrar ───────────────────────────────────────────────
-            Button(
-                onClick = {
-                    if (email.isBlank() || senha.isBlank()) {
-                        erro = "Preencha todos os campos"; return@Button
-                    }
-                    carregando = true; erro = null
-                    scope.launch {
-                        try {
-                            auth.signInWithEmailAndPassword(email, senha).await()
-                            onLoginSucesso()
-                        } catch (e: Exception) {
-                            erro = when (e) {
-                                is FirebaseAuthInvalidUserException        -> "Usuário não encontrado"
-                                is FirebaseAuthInvalidCredentialsException -> "Senha incorreta"
-                                else -> "Erro: ${e.localizedMessage}"
+            // ───── BOTÃO LOGIN ─────
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(52.dp)
+                    .scale(scale)
+                    .clip(RoundedCornerShape(32.dp))
+                    .background(gradientButton)
+                    .clickable {
+
+                        if (email.isBlank() || senha.isBlank()) {
+                            erro = "Preencha todos os campos"
+                            return@clickable
+                        }
+
+                        carregando = true
+                        erro = null
+
+                        scope.launch {
+
+                            try {
+
+                                auth.signInWithEmailAndPassword(email, senha).await()
+
+                                onLoginSucesso()
+
+                            } catch (e: Exception) {
+
+                                erro = when (e) {
+                                    is FirebaseAuthInvalidUserException ->
+                                        "Usuário não encontrado"
+
+                                    is FirebaseAuthInvalidCredentialsException ->
+                                        "Senha incorreta"
+
+                                    else -> "Erro: ${e.localizedMessage}"
+                                }
                             }
-                        } finally { carregando = false }
-                    }
-                },
-                colors   = ButtonDefaults.buttonColors(containerColor = Color.White),
-                shape    = RoundedCornerShape(32.dp),
-                modifier = Modifier.fillMaxWidth().height(52.dp),
-                enabled  = !carregando,
-                elevation = ButtonDefaults.buttonElevation(0.dp, 0.dp)
+
+                            carregando = false
+                        }
+                    },
+                contentAlignment = Alignment.Center
             ) {
+
                 if (carregando) {
+
                     CircularProgressIndicator(
-                        modifier = Modifier.size(22.dp), color = AccentBlue, strokeWidth = 2.dp
+                        color = Color.White,
+                        strokeWidth = 2.dp,
+                        modifier = Modifier.size(22.dp)
                     )
+
                 } else {
+
                     Text(
-                        "Entrar", color = ButtonBlue,
-                        fontWeight = FontWeight.Bold, fontSize = 16.sp, letterSpacing = 1.5.sp
+                        "Entrar",
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        letterSpacing = 1.5.sp
                     )
                 }
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
-            // ── Divisor ────────────────────────────────────────────────────
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                HorizontalDivider(Modifier.weight(1f), color = FieldBorder)
-                Text("  ou  ", color = TextSecondary, fontSize = 12.sp)
-                HorizontalDivider(Modifier.weight(1f), color = FieldBorder)
+
+                HorizontalDivider(
+                    modifier = Modifier.weight(1f),
+                    color = FieldBorder
+                )
+
+                Text(
+                    "  ou  ",
+                    color = TextSecondary
+                )
+
+                HorizontalDivider(
+                    modifier = Modifier.weight(1f),
+                    color = FieldBorder
+                )
             }
 
-            Spacer(Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(30.dp))
 
-            // ── Criar conta ────────────────────────────────────────────────
-            Text(
-                "Criar conta",
-                color      = TextPrimary,
-                fontSize   = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier   = Modifier.clickable { onCriarConta() }.padding(bottom = 40.dp)
-            )
+            Row {
+
+                Text(
+                    "Não tem conta? ",
+                    color = TextSecondary
+                )
+
+                Text(
+                    "Criar conta",
+                    color = AccentCyan,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.clickable { onCriarConta() }
+                )
+            }
         }
     }
 }
 
-// ── Campo de texto estilo KLANCORE ─────────────────────────────────────────
+// ───── TEXT FIELD ─────
+
 @Composable
 fun KlancoreTextField(
     value: String,
     onValueChange: (String) -> Unit,
     placeholder: String,
+    icon: ImageVector,
     isPassword: Boolean = false
 ) {
+
+    var senhaVisivel by remember { mutableStateOf(false) }
+
     OutlinedTextField(
-        value         = value,
+        value = value,
         onValueChange = onValueChange,
-        placeholder   = { Text(placeholder, color = TextSecondary, fontSize = 15.sp) },
-        visualTransformation = if (isPassword) PasswordVisualTransformation()
-        else VisualTransformation.None,
+
+        leadingIcon = {
+            Icon(icon, contentDescription = null, tint = TextSecondary)
+        },
+
+        trailingIcon = {
+
+            if (isPassword) {
+
+                val iconEye =
+                    if (senhaVisivel)
+                        Icons.Default.Visibility
+                    else
+                        Icons.Default.VisibilityOff
+
+                Icon(
+                    iconEye,
+                    contentDescription = null,
+                    tint = TextSecondary,
+                    modifier = Modifier.clickable {
+                        senhaVisivel = !senhaVisivel
+                    }
+                )
+            }
+        },
+
+        placeholder = {
+            Text(placeholder, color = TextSecondary)
+        },
+
+        visualTransformation =
+            if (isPassword && !senhaVisivel)
+                PasswordVisualTransformation()
+            else
+                VisualTransformation.None,
+
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(12.dp))
             .background(FieldBg),
-        shape  = RoundedCornerShape(10.dp),
+
+        shape = RoundedCornerShape(12.dp),
+
         colors = OutlinedTextFieldDefaults.colors(
-            focusedBorderColor      = FieldFocused,
-            unfocusedBorderColor    = FieldBorder,
-            focusedTextColor        = TextPrimary,
-            unfocusedTextColor      = TextPrimary,
-            cursorColor             = AccentCyan,
-            focusedContainerColor   = FieldBg,
+            focusedBorderColor = FieldFocused,
+            unfocusedBorderColor = FieldBorder,
+            focusedTextColor = TextPrimary,
+            unfocusedTextColor = TextPrimary,
+            cursorColor = AccentCyan,
+            focusedContainerColor = FieldBg,
             unfocusedContainerColor = FieldBg
         ),
+
         singleLine = true
     )
 }
