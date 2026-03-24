@@ -203,6 +203,7 @@ fun LoginPrimeiraVez(
     var signo                   by remember { mutableStateOf("") }
     var interesseAtual          by remember { mutableStateOf<String?>(null) }
     val subcategoriasSelecionadas = remember { mutableStateListOf<String>() }
+    val outrosInteressesSelecionados = remember { mutableStateListOf<String>() }
     var erro                    by remember { mutableStateOf("") }
     var carregando              by remember { mutableStateOf(true) }
     var mostrarSeletorInteresse by remember { mutableStateOf(false) }
@@ -228,6 +229,10 @@ fun LoginPrimeiraVez(
                     when (subs) {
                         is List<*> -> subcategoriasSelecionadas.addAll(subs.filterIsInstance<String>())
                         is String  -> if (subs.isNotBlank()) subcategoriasSelecionadas.add(subs)
+                    }// ADICIONA ESTE BLOCO:
+                    val outros = doc.get("outrosInteresses")
+                    if (outros is List<*>) {
+                        outrosInteressesSelecionados.addAll(outros.filterIsInstance<String>())
                     }
                     carregando = false
                 }
@@ -295,6 +300,7 @@ fun LoginPrimeiraVez(
                                             if (interesseAtual != interesse.id) {
                                                 interesseAtual = interesse.id
                                                 subcategoriasSelecionadas.clear()
+                                                outrosInteressesSelecionados.remove(interesse.id)
                                             }
                                             mostrarSeletorInteresse = false
                                         }
@@ -613,6 +619,90 @@ fun LoginPrimeiraVez(
                             }
                         }
                     }
+                    Spacer(Modifier.height(24.dp))
+
+                    SectionLabel("Outros Interesses", AccentCyan, AccentBlue)
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(
+                            "O que mais gostas? (opcional)",
+                            fontSize = 12.sp,
+                            color = TextSecondary
+                        )
+                        // contador
+                        if (outrosInteressesSelecionados.isNotEmpty()) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(20.dp))
+                                    .background(Brush.linearGradient(listOf(AccentCyan, AccentBlue)))
+                                    .padding(horizontal = 10.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    "${outrosInteressesSelecionados.size} selecionado(s)",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = Color.White
+                                )
+                            }
+                        }
+                    }
+
+                    // Filtramos para não mostrar o interesse principal na lista de "outros"
+                    val interessesDisponiveis = listaInteresses.filter { it.id != interesseAtual }
+
+                    interessesDisponiveis.chunked(3).forEach { rowItems ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            rowItems.forEach { inter ->
+                                val sel = outrosInteressesSelecionados.contains(inter.id)
+                                val scaleCard by animateFloatAsState(if (sel) 1.05f else 1f, label = "outros${inter.id}")
+
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .scale(scaleCard)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(
+                                            if (sel)
+                                                Brush.linearGradient(listOf(AccentCyan.copy(0.2f), AccentBlue.copy(0.2f)))
+                                            else Brush.linearGradient(listOf(FieldBg, FieldBg))
+                                        )
+                                        .border(
+                                            width = if (sel) 1.5.dp else 1.dp,
+                                            brush = if (sel)
+                                                Brush.linearGradient(listOf(AccentCyan, AccentBlue))
+                                            else Brush.linearGradient(listOf(FieldBorder, FieldBorder)),
+                                            shape = RoundedCornerShape(12.dp)
+                                        )
+                                        .clickable {
+                                            if (sel) outrosInteressesSelecionados.remove(inter.id)
+                                            else outrosInteressesSelecionados.add(inter.id)
+                                        }
+                                        .padding(vertical = 10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(inter.emoji, fontSize = 20.sp)
+                                        Spacer(Modifier.height(3.dp))
+                                        Text(
+                                            inter.label,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (sel) FontWeight.Bold else FontWeight.Normal,
+                                            color = if (sel) AccentCyan else TextSecondary
+                                        )
+                                    }
+                                }
+                            }
+                            repeat(3 - rowItems.size) { Spacer(modifier = Modifier.weight(1f)) }
+                        }
+                    }
+                    // ================= FIM: OUTROS INTERESSES =================
 
                     if (erro.isNotEmpty()) {
                         Spacer(Modifier.height(8.dp))
@@ -648,7 +738,8 @@ fun LoginPrimeiraVez(
                                 "sexualidade"    to sexualidade,
                                 "signo"          to signo,
                                 "interesse"      to interesseAtual,
-                                "subcategorias"  to subcategoriasSelecionadas.toList()
+                                "subcategorias"  to subcategoriasSelecionadas.toList(),
+                                "outrosInteresses" to outrosInteressesSelecionados.toList()
                             )
 
                             firestore.collection("usuarios").document(currentUser.uid)
