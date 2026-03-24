@@ -186,6 +186,7 @@ val subcategoriasPorInteresse: Map<String, List<Subcategoria>> = mapOf(
 
 // ───────────────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun LoginPrimeiraVez(
     navController: NavController,
@@ -207,9 +208,26 @@ fun LoginPrimeiraVez(
     var erro                    by remember { mutableStateOf("") }
     var carregando              by remember { mutableStateOf(true) }
     var mostrarSeletorInteresse by remember { mutableStateOf(false) }
+    var salvando by remember { mutableStateOf(false) }
+
+    // Estados para o Dropdown de Sexualidade
+    var expandedSexualidade by remember { mutableStateOf(false) }
+    val opcoesSexualidade = listOf("Heterossexual", "Homossexual", "Bissexual", "Pansexual")
 
     val subcategorias = interesseAtual?.let { subcategoriasPorInteresse[it] } ?: emptyList()
-    val botaoAtivo    = nome.isNotBlank() && idade.isNotBlank() && subcategoriasSelecionadas.isNotEmpty()
+    val botaoAtivo    = nome.isNotBlank() && idade.isNotBlank() && sexualidade.isNotBlank() && subcategoriasSelecionadas.isNotEmpty()
+
+    // Cores auxiliares para facilitar o uso no dropdown
+    val BgMid = Color(0xFF0B1422)
+    val BgDeep = Color(0xFF060B10)
+    val AccentCyan = Color(0xFF4DD9E8)
+    val AccentPurple = Color(0xFF8B5CF6)
+    val AccentBlue = Color(0xFF3B82F6)
+    val TextPrimary = Color(0xFFE8F4FF)
+    val TextSecondary = Color(0xFF8BA8C0)
+    val FieldBg = Color(0xFF0D1A2A).copy(alpha = 0.75f)
+    val FieldBorder = Color(0xFFFFFFFF).copy(alpha = 0.18f)
+    val FieldFocused = Color(0xFFFFFFFF).copy(alpha = 0.45f)
 
     // ── carrega dados ──
     LaunchedEffect(currentUser) {
@@ -452,18 +470,45 @@ fun LoginPrimeiraVez(
                                 cursorColor = AccentCyan, focusedContainerColor = FieldBg, unfocusedContainerColor = FieldBg
                             ), singleLine = true
                         )
-                        OutlinedTextField(
-                            value = sexualidade, onValueChange = { sexualidade = it },
-                            placeholder = { Text("Sexualidade", color = TextSecondary) },
-                            leadingIcon = { Icon(Icons.Default.Favorite, null, tint = TextSecondary) },
-                            modifier = Modifier.weight(1.4f).clip(RoundedCornerShape(12.dp)).background(FieldBg),
-                            shape = RoundedCornerShape(12.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = FieldFocused, unfocusedBorderColor = FieldBorder,
-                                focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
-                                cursorColor = AccentCyan, focusedContainerColor = FieldBg, unfocusedContainerColor = FieldBg
-                            ), singleLine = true
-                        )
+
+                        // ── Dropdown de Sexualidade ──
+                        ExposedDropdownMenuBox(
+                            expanded = expandedSexualidade,
+                            onExpandedChange = { expandedSexualidade = it },
+                            modifier = Modifier.weight(1.4f)
+                        ) {
+                            OutlinedTextField(
+                                value = sexualidade,
+                                onValueChange = {},
+                                readOnly = true, // Impede a digitação livre
+                                placeholder = { Text("Sexualidade", color = TextSecondary) },
+                                leadingIcon = { Icon(Icons.Default.Favorite, null, tint = TextSecondary) },
+                                trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedSexualidade) },
+                                modifier = Modifier.menuAnchor().fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(FieldBg),
+                                shape = RoundedCornerShape(12.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = FieldFocused, unfocusedBorderColor = FieldBorder,
+                                    focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                                    cursorColor = AccentCyan, focusedContainerColor = FieldBg, unfocusedContainerColor = FieldBg
+                                ),
+                                singleLine = true
+                            )
+                            ExposedDropdownMenu(
+                                expanded = expandedSexualidade,
+                                onDismissRequest = { expandedSexualidade = false },
+                                modifier = Modifier.background(BgMid)
+                            ) {
+                                opcoesSexualidade.forEach { opcao ->
+                                    DropdownMenuItem(
+                                        text = { Text(opcao, color = TextPrimary) },
+                                        onClick = {
+                                            sexualidade = opcao
+                                            expandedSexualidade = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                     Spacer(Modifier.height(10.dp))
 
@@ -735,7 +780,7 @@ fun LoginPrimeiraVez(
                                 "email"          to email,
                                 "bio"            to bio,
                                 "idade"          to idadeNum,
-                                "sexualidade"    to sexualidade,
+                                "sexualidade"    to sexualidade, // Agora padronizada!
                                 "signo"          to signo,
                                 "interesse"      to interesseAtual,
                                 "subcategorias"  to subcategoriasSelecionadas.toList(),

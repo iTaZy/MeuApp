@@ -1,4 +1,3 @@
-// ConexoesViewModel.kt (Versão atualizada com integração de matches)
 package com.tazy.meuapp.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -15,33 +14,49 @@ import com.google.firebase.firestore.FirebaseFirestore
 import java.util.Date
 
 class ConexoesViewModel : ViewModel() {
-    // Estado da tela
     private val _uiState = MutableStateFlow<ConexoesUiState>(ConexoesUiState.Loading)
     val uiState: StateFlow<ConexoesUiState> = _uiState.asStateFlow()
 
-    // Estado para notificar match
     private val _matchState = MutableStateFlow<MatchState>(MatchState.None)
     val matchState: StateFlow<MatchState> = _matchState.asStateFlow()
 
-    // Lista de perfis disponíveis
     private val availableProfiles = mutableListOf<Profile>()
-
-    // Índice do perfil atual
     private var currentProfileIndex = 0
 
-    // Firebase instances
     private val auth = FirebaseAuth.getInstance()
     private val firestore = FirebaseFirestore.getInstance()
 
+    // --- VARIÁVEIS DOS FILTROS ---
+    var filtroIdadeMinima = 18
+        private set
+    var filtroIdadeMaxima = 100
+        private set
+    var filtroInteresseFocado: String = ""
+        private set
+    var filtroSexualidade: String = ""
+        private set
+
+    // Lista dos interesses do próprio utilizador para mostrar no filtro
+    private val _meusInteresses = MutableStateFlow<List<String>>(emptyList())
+    val meusInteresses: StateFlow<List<String>> = _meusInteresses.asStateFlow()
+
     init {
         loadProfiles()
+    }
+
+    // Função para aplicar todos os filtros de uma vez
+    fun aplicarFiltros(minIdade: Int, maxIdade: Int, interesse: String, sexualidade: String) {
+        filtroIdadeMinima = minIdade
+        filtroIdadeMaxima = maxIdade
+        filtroInteresseFocado = interesse
+        filtroSexualidade = sexualidade
+        reloadProfiles()
     }
 
     private fun loadProfiles() {
         viewModelScope.launch {
             try {
                 _uiState.value = ConexoesUiState.Loading
-
                 val currentUser = auth.currentUser
 
                 if (currentUser == null) {
@@ -49,81 +64,100 @@ class ConexoesViewModel : ViewModel() {
                     return@launch
                 }
 
-                // Primeiro, obter o código do condomínio do usuário atual
-                val currentUserDoc = firestore.collection("usuarios")
-                    .document(currentUser.uid)
-                    .get()
-                    .await()
+                // 1. Buscar os dados do utilizador logado
+                val currentUserDoc = firestore.collection("usuarios").document(currentUser.uid).get().await()
 
-                val codigoCondominio = currentUserDoc.getString("codigoCondominio")
-                if (codigoCondominio.isNullOrBlank()) {
-                    _uiState.value = ConexoesUiState.Error("Código do condomínio não encontrado")
-                    return@launch
-                }
+                val meuInteresse = currentUserDoc.getString("interesse")
+                val minhasSubcategorias = currentUserDoc.get("subcategorias") as? List<String> ?: emptyList()
+                val meusOutrosInteresses = currentUserDoc.get("outrosInteresses") as? List<String> ?: emptyList()
 
-                // Buscar outros usuários do mesmo condomínio (excluindo o usuário atual)
-                val querySnapshot = firestore.collection("usuarios")
-                    .whereEqualTo("codigoCondominio", codigoCondominio)
-                    .get()
-                    .await()
+                val meusGostos = mutableSetOf<String>()
+                meuInteresse?.let { if (it.isNotBlank()) meusGostos.add(it) }
+                meusGostos.addAll(minhasSubcategorias.filter { it.isNotBlank() })
+                meusGostos.addAll(meusOutrosInteresses.filter { it.isNotBlank() })
 
-                // Buscar perfis já avaliados pelo usuário atual
+                // Atualiza a lista de interesses na UI para o filtro
+                _meusInteresses.value = meusGostos.toList()
+
+                // 2. Buscar outros perfis
+                val querySnapshot = firestore.collection("usuarios").get().await()
                 val avaliadosSnapshot = firestore.collection("conexoes")
                     .whereEqualTo("userId", currentUser.uid)
                     .get()
                     .await()
 
-                val perfilsAvaliados = avaliadosSnapshot.documents.map {
-                    it.getString("likedUserId")
-                }.toSet()
-
+                val perfilsAvaliados = avaliadosSnapshot.documents.map { it.getString("likedUserId") }.toSet()
                 val profiles = mutableListOf<Profile>()
 
                 for (document in querySnapshot.documents) {
-                    // Pular o próprio usuário
                     if (document.id == currentUser.uid) continue
-
-                    // Pular perfis já avaliados
                     if (perfilsAvaliados.contains(document.id)) continue
 
-                    val nome = document.getString("nome") ?: continue
                     val idade = document.getLong("idade")?.toInt() ?: continue
+
+                    // 🎯 FILTRO 1: Idade
+                    if (idade < filtroIdadeMinima || idade > filtroIdadeMaxima) continue
+
+                    val sexualidadePerfil = document.getString("sexualidade") ?: ""
+
+                    // 🎯 FILTRO 2: Sexualidade (Verifica se está preenchido e se é diferente do escolhido)
+                    if (filtroSexualidade.isNotEmpty() && !sexualidadePerfil.equals(filtroSexualidade, ignoreCase = true)) {
+                        continue
+                    }
+
+                    // Obter os gostos deste outro utilizador
+                    val outroInteresse = document.getString("interesse")
+                    val outrasSubcategorias = document.get("subcategorias") as? List<String> ?: emptyList()
+                    val outrosOutrosInteresses = document.get("outrosInteresses") as? List<String> ?: emptyList()
+
+                    val outrosGostos = mutableSetOf<String>()
+                    outroInteresse?.let { if (it.isNotBlank()) outrosGostos.add(it) }
+                    outrosGostos.addAll(outrasSubcategorias.filter { it.isNotBlank() })
+                    outrosGostos.addAll(outrosOutrosInteresses.filter { it.isNotBlank() })
+
+                    // 🎯 FILTRO 3: Interesse Focado (Modo Nicho)
+                    // Se o utilizador focou num interesse, e o outro perfil NÃO o tem, pulamos
+                    if (filtroInteresseFocado.isNotEmpty() && !outrosGostos.contains(filtroInteresseFocado)) {
+                        continue
+                    }
+
+                    // Regra base: Tem de ter pelo menos 1 gosto em comum geral
+                    val gostosEmComum = meusGostos.intersect(outrosGostos)
+                    if (gostosEmComum.isEmpty()) continue
+
+                    val nome = document.getString("nome") ?: continue
                     val bio = document.getString("bio") ?: ""
-                    val sexualidade = document.getString("sexualidade") ?: ""
                     val signo = document.getString("signo") ?: ""
-                    val interesses = document.get("interesses") as? List<String> ?: emptyList()
 
                     val profile = Profile(
                         id = document.id,
                         name = nome,
-                        imageUrl = "", // Por enquanto vazio, pode ser implementado depois
+                        imageUrl = "",
                         age = idade,
                         bio = if (bio.isNotEmpty()) bio else "Sem bio disponível",
-                        sexualidade = sexualidade,
+                        sexualidade = sexualidadePerfil,
                         signo = signo,
-                        interesses = interesses
+                        interesses = outrosGostos.toList()
                     )
 
                     profiles.add(profile)
                 }
 
                 availableProfiles.clear()
-                availableProfiles.addAll(profiles)
+                availableProfiles.addAll(profiles.shuffled())
 
                 if (profiles.isNotEmpty()) {
                     _uiState.value = ConexoesUiState.Success(
-                        currentProfile = profiles.first(),
-                        remainingProfiles = profiles.size - 1,
+                        currentProfile = availableProfiles.first(),
+                        remainingProfiles = availableProfiles.size - 1,
                         currentIndex = 0,
-                        totalProfiles = profiles.size
+                        totalProfiles = availableProfiles.size
                     )
                 } else {
                     _uiState.value = ConexoesUiState.Empty
                 }
             } catch (e: Exception) {
-                _uiState.value = ConexoesUiState.Error(
-                    message = "Erro ao carregar perfis: ${e.localizedMessage ?: "Erro desconhecido"}"
-                )
+                _uiState.value = ConexoesUiState.Error(message = "Erro: ${e.message}")
             }
         }
     }
@@ -134,7 +168,6 @@ class ConexoesViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Salvar o like no Firestore
                 val conexaoData = hashMapOf(
                     "userId" to currentUser.uid,
                     "likedUserId" to currentProfile.id,
@@ -142,11 +175,8 @@ class ConexoesViewModel : ViewModel() {
                     "timestamp" to Date()
                 )
 
-                firestore.collection("conexoes")
-                    .add(conexaoData)
-                    .await()
+                firestore.collection("conexoes").add(conexaoData).await()
 
-                // Verificar se existe match mútuo
                 val mutualLikeQuery = firestore.collection("conexoes")
                     .whereEqualTo("userId", currentProfile.id)
                     .whereEqualTo("likedUserId", currentUser.uid)
@@ -155,7 +185,6 @@ class ConexoesViewModel : ViewModel() {
                     .await()
 
                 if (mutualLikeQuery.documents.isNotEmpty()) {
-                    // MATCH! Criar documento de match
                     val matchData = hashMapOf(
                         "participants" to listOf(currentUser.uid, currentProfile.id),
                         "timestamp" to Date(),
@@ -164,64 +193,42 @@ class ConexoesViewModel : ViewModel() {
                         "isActive" to true
                     )
 
-                    firestore.collection("matches")
-                        .add(matchData)
-                        .await()
+                    firestore.collection("matches").add(matchData).await()
 
-                    // Notificar sobre o match
                     _matchState.value = MatchState.NewMatch(currentProfile.name)
-
-                    // Limpar notificação após 3 segundos
                     delay(3000)
                     _matchState.value = MatchState.None
                 }
 
-                // Simula um pequeno delay para feedback visual
                 delay(200)
-
-                // Avança para o próximo perfil
                 moveToNextProfile()
-
             } catch (e: Exception) {
-                // Em caso de erro, ainda avança (pode implementar tratamento de erro aqui)
                 moveToNextProfile()
             }
         }
     }
 
-    // Função para "dislike" (pular perfil sem criar vínculo)
     fun dislikeProfile() {
         val currentProfile = availableProfiles.getOrNull(currentProfileIndex) ?: return
         val currentUser = auth.currentUser ?: return
 
         viewModelScope.launch {
             try {
-                // Salvar o dislike no Firestore para não mostrar novamente
                 val conexaoData = hashMapOf(
                     "userId" to currentUser.uid,
                     "likedUserId" to currentProfile.id,
                     "liked" to false,
                     "timestamp" to Date()
                 )
-
-                firestore.collection("conexoes")
-                    .add(conexaoData)
-                    .await()
-
-                // Simula um pequeno delay para feedback visual
+                firestore.collection("conexoes").add(conexaoData).await()
                 delay(200)
-
-                // Avança para o próximo perfil
                 moveToNextProfile()
-
             } catch (e: Exception) {
-                // Em caso de erro, ainda avança
                 moveToNextProfile()
             }
         }
     }
 
-    // Nova função para navegar para o próximo perfil
     fun nextProfile() {
         if (currentProfileIndex < availableProfiles.size - 1) {
             currentProfileIndex++
@@ -229,7 +236,6 @@ class ConexoesViewModel : ViewModel() {
         }
     }
 
-    // Nova função para navegar para o perfil anterior
     fun previousProfile() {
         if (currentProfileIndex > 0) {
             currentProfileIndex--
@@ -237,7 +243,6 @@ class ConexoesViewModel : ViewModel() {
         }
     }
 
-    // Função auxiliar para atualizar o estado da UI
     private fun updateUiState() {
         if (currentProfileIndex < availableProfiles.size) {
             _uiState.value = ConexoesUiState.Success(
@@ -253,25 +258,12 @@ class ConexoesViewModel : ViewModel() {
 
     private fun moveToNextProfile() {
         currentProfileIndex++
-        if (currentProfileIndex < availableProfiles.size) {
-            _uiState.value = ConexoesUiState.Success(
-                currentProfile = availableProfiles[currentProfileIndex],
-                remainingProfiles = availableProfiles.size - currentProfileIndex - 1,
-                currentIndex = currentProfileIndex,
-                totalProfiles = availableProfiles.size
-            )
-        } else {
-            _uiState.value = ConexoesUiState.Empty
-        }
+        updateUiState()
     }
 
-    // Função para verificar se pode voltar
     fun canGoBack(): Boolean = currentProfileIndex > 0
-
-    // Função para verificar se pode avançar
     fun canGoForward(): Boolean = currentProfileIndex < availableProfiles.size - 1
 
-    // Função para recarregar perfis (útil para pull-to-refresh)
     fun reloadProfiles() {
         currentProfileIndex = 0
         availableProfiles.clear()
@@ -279,13 +271,11 @@ class ConexoesViewModel : ViewModel() {
         loadProfiles()
     }
 
-    // Função para limpar estado de match
     fun clearMatchState() {
         _matchState.value = MatchState.None
     }
 }
 
-// Estados possíveis da UI
 sealed class ConexoesUiState {
     object Loading : ConexoesUiState()
     data class Success(
@@ -298,7 +288,6 @@ sealed class ConexoesUiState {
     object Empty : ConexoesUiState()
 }
 
-// Estados para matches
 sealed class MatchState {
     object None : MatchState()
     data class NewMatch(val matchedUserName: String) : MatchState()
