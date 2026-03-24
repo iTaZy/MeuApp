@@ -157,7 +157,9 @@ class ChatIndividualViewModel : ViewModel() {
                 // Atualizar o documento do match com a última mensagem
                 val matchUpdateData = mapOf(
                     "lastMessage" to messageText,
-                    "lastMessageTime" to Date()
+                    "lastMessageTime" to Date(),
+                    "lastMessageSenderId" to currentUser.uid, // Salva quem enviou
+                    "isLastMessageRead" to false              // Marca como não lida
                 )
 
                 firestore.collection("matches")
@@ -178,7 +180,7 @@ class ChatIndividualViewModel : ViewModel() {
 
         viewModelScope.launch {
             try {
-                // Marcar como lidas todas as mensagens do match que não são do usuário atual
+                // Marcar como lidas todas as mensagens da subcoleção...
                 val unreadMessages = firestore.collection("matches")
                     .document(matchId)
                     .collection("messages")
@@ -190,12 +192,15 @@ class ChatIndividualViewModel : ViewModel() {
                 for (document in unreadMessages.documents) {
                     document.reference.update("isRead", true)
                 }
+
+                // ADICIONE ESTA LINHA: Marca o "Geral" do Match como lido também
+                firestore.collection("matches").document(matchId).update("isLastMessageRead", true)
+
             } catch (e: Exception) {
                 // Falha silenciosa
             }
         }
     }
-
     override fun onCleared() {
         super.onCleared()
         messagesListener?.remove()

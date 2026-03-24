@@ -216,9 +216,9 @@ fun TelaLobbyPrincipal(
                                 modifier = Modifier.fillMaxSize()
                             ) {
                                 items(currentState.matches) { match ->
-                                    val otherUserName = match.getOtherUserName(
-                                        com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
-                                    )
+                                    val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
+
+                                    val otherUserName = match.getOtherUserName(currentUserId)
 
                                     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
                                     val displayTime = match.lastMessageTime?.let { timeFormat.format(it) }
@@ -230,10 +230,14 @@ fun TelaLobbyPrincipal(
                                         "Vocês se conectaram! Envie a primeira mensagem."
                                     }
 
+                                    // Lógica: É não lida se a última mensagem NÃO for minha, e o status isLastMessageRead for false
+                                    val isUnread = match.lastMessageSenderId != currentUserId && !match.isLastMessageRead && match.lastMessageSenderId.isNotEmpty()
+
                                     ItemConversa(
                                         nome = otherUserName,
                                         mensagem = displayMessage,
                                         horario = displayTime,
+                                        naoLida = isUnread, // PASSA O STATUS AQUI
                                         onClick = {
                                             navController.navigate("chat/${match.id}")
                                         }

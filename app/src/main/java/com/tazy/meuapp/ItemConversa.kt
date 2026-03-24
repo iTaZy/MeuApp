@@ -1,3 +1,4 @@
+// ItemConversa.kt
 package com.tazy.meuapp.ui.components
 
 import androidx.compose.foundation.background
@@ -24,9 +25,9 @@ fun ItemConversa(
     nome: String,
     mensagem: String,
     horario: String,
+    naoLida: Boolean = false, // NOVO PARÂMETRO
     onClick: () -> Unit = {}
 ) {
-    // Cores da paleta Klancore
     val AccentCyan = Color(0xFF4DD9E8)
     val AccentPurple = Color(0xFF8B5CF6)
     val TextPrimary = Color(0xFFE8F4FF)
@@ -40,7 +41,6 @@ fun ItemConversa(
             .padding(vertical = 12.dp, horizontal = 16.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Foto de perfil com identidade Klancore (borda gradiente e fundo translúcido)
         Box(
             modifier = Modifier
                 .size(54.dp)
@@ -49,52 +49,49 @@ fun ItemConversa(
                 .border(2.dp, Brush.linearGradient(listOf(AccentCyan, AccentPurple)), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(
-                imageVector = Icons.Default.Person,
-                contentDescription = "Foto de perfil",
-                tint = TextSecondary,
-                modifier = Modifier.size(28.dp)
-            )
+            Icon(Icons.Default.Person, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(28.dp))
         }
 
         Spacer(modifier = Modifier.width(16.dp))
 
-        // Informações da conversa
-        Column(
-            modifier = Modifier.weight(1f)
-        ) {
+        Column(modifier = Modifier.weight(1f)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = nome,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = TextPrimary,
-                    modifier = Modifier.weight(1f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    text = nome, fontSize = 16.sp, fontWeight = FontWeight.Bold,
+                    color = TextPrimary, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
 
                 Text(
-                    text = horario,
-                    fontSize = 12.sp,
-                    color = TextSecondary
+                    text = horario, fontSize = 12.sp,
+                    color = if (naoLida) AccentCyan else TextSecondary,
+                    fontWeight = if (naoLida) FontWeight.Bold else FontWeight.Normal
                 )
             }
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // A mensagem agora é exibida corretamente
-            Text(
-                text = mensagem,
-                fontSize = 14.sp,
-                color = TextSecondary,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text(
+                    text = mensagem, fontSize = 14.sp,
+                    color = if (naoLida) TextPrimary else TextSecondary,
+                    fontWeight = if (naoLida) FontWeight.Bold else FontWeight.Normal,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
+                )
+
+                // Bolinha de Notificação
+                if (naoLida) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(AccentCyan))
+                }
+            }
         }
     }
 }

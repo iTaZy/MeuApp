@@ -1,10 +1,12 @@
 package com.tazy.meuapp
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -14,6 +16,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -38,9 +41,23 @@ fun TelaChatIndividual(
     val chatState by chatViewModel.uiState.collectAsState()
     val lazyListState = rememberLazyListState()
 
+    // Paleta KLANCORE
+    val BgDeep = Color(0xFF060B10)
+    val BgMid = Color(0xFF0B1422)
+    val AccentCyan = Color(0xFF4DD9E8)
+    val AccentPurple = Color(0xFF8B5CF6)
+    val AccentBlue = Color(0xFF3B82F6)
+    val TextPrimary = Color(0xFFE8F4FF)
+    val TextSecondary = Color(0xFF8BA8C0)
+    val FieldBg = Color(0xFF0D1A2A).copy(alpha = 0.75f)
+    val FieldBorder = Color(0xFFFFFFFF).copy(alpha = 0.18f)
+
+    val gradientButton = Brush.linearGradient(listOf(AccentPurple, AccentBlue, AccentCyan))
+
     // Carregar mensagens quando a tela é aberta
     LaunchedEffect(matchId) {
         chatViewModel.loadMessages(matchId)
+        chatViewModel.markMessagesAsRead(matchId)
     }
 
     // Auto-scroll para a última mensagem
@@ -53,132 +70,124 @@ fun TelaChatIndividual(
             }
         }
     }
-    Scaffold(
-        containerColor = Color.White,
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        text = when (val state = chatState) {
-                            is ChatUiState.Success -> state.otherUserName
-                            else -> "Chat"
-                        },
-                        fontWeight = FontWeight.Medium,
-                        color = Color.White
-                    )
-                },
-                navigationIcon = {
-                    IconButton(onClick = { navController.navigateUp() }) {
-                        Icon(
-                            imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Voltar",
-                            tint = Color.White
-                        )
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color(0xFF2196F3)
-                )
-            )
-        },
-        bottomBar = {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                color = Color.White,
-                shadowElevation = 8.dp
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    verticalAlignment = Alignment.Bottom
-                ) {
-                    OutlinedTextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(24.dp)),
-                        placeholder = {
-                            Text("Digite sua mensagem...", color = Color.Gray)
-                        },
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Color(0xFF2196F3),
-                            unfocusedBorderColor = Color.Gray,
-                            cursorColor = Color(0xFF2196F3)
-                        ),
-                        shape = RoundedCornerShape(24.dp),
-                        maxLines = 4
-                    )
 
-                    Spacer(modifier = Modifier.width(8.dp))
-
-                    FloatingActionButton(
-                        onClick = {
-                            if (messageText.trim().isNotEmpty()) {
-                                chatViewModel.sendMessage(matchId, messageText.trim())
-                                messageText = ""
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Brush.verticalGradient(listOf(BgDeep, BgMid, Color(0xFF050A0F))))
+    ) {
+        Scaffold(
+            containerColor = Color.Transparent, // Revela o gradiente do Box de trás
+            topBar = {
+                Column {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                text = when (val state = chatState) {
+                                    is ChatUiState.Success -> state.otherUserName
+                                    else -> "Chat"
+                                },
+                                fontWeight = FontWeight.Bold,
+                                color = TextPrimary
+                            )
+                        },
+                        navigationIcon = {
+                            IconButton(onClick = { navController.navigateUp() }) {
+                                Icon(
+                                    imageVector = Icons.Default.ArrowBack,
+                                    contentDescription = "Voltar",
+                                    tint = AccentCyan
+                                )
                             }
                         },
-                        modifier = Modifier.size(48.dp),
-                        containerColor = Color(0xFF2196F3),
-                        contentColor = Color.White
+                        colors = TopAppBarDefaults.topAppBarColors(
+                            containerColor = Color.Transparent
+                        )
+                    )
+                    // Linha divisória sutil entre o topo e o chat
+                    HorizontalDivider(
+                        modifier = Modifier.fillMaxWidth(),
+                        color = FieldBorder
+                    )
+                }
+            },
+            bottomBar = {
+                // Painel inferior (Área de digitação)
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(BgMid)
+                        .border(width = 1.dp, color = FieldBorder, shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                        .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.Bottom
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = "Enviar mensagem"
+                        OutlinedTextField(
+                            value = messageText,
+                            onValueChange = { messageText = it },
+                            modifier = Modifier
+                                .weight(1f)
+                                .clip(RoundedCornerShape(24.dp))
+                                .background(FieldBg),
+                            placeholder = {
+                                Text("Digite sua mensagem...", color = TextSecondary)
+                            },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentCyan,
+                                unfocusedBorderColor = Color.Transparent,
+                                cursorColor = AccentCyan,
+                                focusedTextColor = TextPrimary,
+                                unfocusedTextColor = TextPrimary,
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(24.dp),
+                            maxLines = 4
                         )
-                    }
-                }
-            }
-        }
-    ) { padding ->
-        when (val state = chatState) {
-            is ChatUiState.Loading -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Color(0xFF2196F3))
-                }
-            }
 
-            is ChatUiState.Error -> {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(padding)
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(
-                            text = "Erro ao carregar chat",
-                            color = Color.Red,
-                            fontSize = 16.sp,
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Button(
-                            onClick = { chatViewModel.loadMessages(matchId) },
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color(0xFF2196F3)
-                            )
+                        Spacer(modifier = Modifier.width(12.dp))
+
+                        // Botão de Enviar
+                        IconButton(
+                            onClick = {
+                                if (messageText.trim().isNotEmpty()) {
+                                    chatViewModel.sendMessage(matchId, messageText.trim())
+                                    messageText = ""
+                                }
+                            },
+                            modifier = Modifier
+                                .size(50.dp)
+                                .clip(CircleShape)
+                                .background(gradientButton)
                         ) {
-                            Text("Tentar Novamente", color = Color.White)
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = "Enviar mensagem",
+                                tint = Color.White,
+                                modifier = Modifier.padding(start = 4.dp) // Ajuste para centralizar visualmente o aviãozinho de papel
+                            )
                         }
                     }
                 }
             }
+        ) { padding ->
+            when (val state = chatState) {
+                is ChatUiState.Loading -> {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = AccentCyan)
+                    }
+                }
 
-            is ChatUiState.Success -> {
-                val messages = state.messages
-                val otherUserName = state.otherUserName
-                val currentUserId = state.currentUserId
-
-                if (messages.isEmpty()) {
+                is ChatUiState.Error -> {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -187,39 +196,74 @@ fun TelaChatIndividual(
                         contentAlignment = Alignment.Center
                     ) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("🎉", fontSize = 48.sp, modifier = Modifier.padding(bottom = 16.dp))
                             Text(
-                                text = "Vocês se conectaram!",
-                                fontSize = 18.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = Color(0xFF2196F3),
+                                text = "Erro ao carregar chat",
+                                color = Color(0xFFFF5252),
+                                fontSize = 16.sp,
                                 textAlign = TextAlign.Center
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text(
-                                text = "Envie a primeira mensagem para $otherUserName",
-                                fontSize = 14.sp,
-                                color = Color.Gray,
-                                textAlign = TextAlign.Center,
-                                modifier = Modifier.padding(horizontal = 32.dp)
-                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(32.dp))
+                                    .background(gradientButton)
+                            ) {
+                                TextButton(onClick = { chatViewModel.loadMessages(matchId) }) {
+                                    Text("Tentar Novamente", color = Color.White, fontWeight = FontWeight.Bold)
+                                }
+                            }
                         }
                     }
-                } else {
-                    LazyColumn(
-                        state = lazyListState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(padding)
-                            .padding(horizontal = 16.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                        contentPadding = PaddingValues(vertical = 16.dp)
-                    ) {
-                        items(messages) { message ->
-                            MessageItem(
-                                message = message,
-                                isFromCurrentUser = message.senderId == currentUserId
-                            )
+                }
+
+                is ChatUiState.Success -> {
+                    val messages = state.messages
+                    val otherUserName = state.otherUserName
+                    val currentUserId = state.currentUserId
+
+                    if (messages.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                                .padding(16.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("🎉", fontSize = 56.sp, modifier = Modifier.padding(bottom = 16.dp))
+                                Text(
+                                    text = "Vocês se conectaram!",
+                                    fontSize = 20.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = AccentCyan,
+                                    textAlign = TextAlign.Center
+                                )
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Envie a primeira mensagem para $otherUserName",
+                                    fontSize = 14.sp,
+                                    color = TextSecondary,
+                                    textAlign = TextAlign.Center,
+                                    modifier = Modifier.padding(horizontal = 32.dp)
+                                )
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            state = lazyListState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(padding)
+                                .padding(horizontal = 16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(vertical = 16.dp)
+                        ) {
+                            items(messages) { message ->
+                                MessageItem(
+                                    message = message,
+                                    isFromCurrentUser = message.senderId == currentUserId
+                                )
+                            }
                         }
                     }
                 }
@@ -236,6 +280,12 @@ private fun MessageItem(
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
     val timeText = timeFormat.format(message.timestamp)
 
+    val AccentCyan = Color(0xFF4DD9E8)
+    val AccentBlue = Color(0xFF3B82F6)
+    val TextPrimary = Color(0xFFE8F4FF)
+    val TextSecondary = Color(0xFF8BA8C0)
+    val FieldBg = Color(0xFF0D1A2A).copy(alpha = 0.75f)
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (isFromCurrentUser) Arrangement.End else Arrangement.Start
@@ -249,20 +299,33 @@ private fun MessageItem(
                         RoundedCornerShape(
                             topStart = 16.dp,
                             topEnd = 16.dp,
+                            // Se for minha mensagem, o canto inferior direito fica reto (4.dp) indicando de onde saiu a bolha
                             bottomStart = if (isFromCurrentUser) 16.dp else 4.dp,
                             bottomEnd = if (isFromCurrentUser) 4.dp else 16.dp
                         )
                     )
                     .background(
-                        if (isFromCurrentUser) Color(0xFF2196F3) else Color(0xFFF5F5F5)
+                        if (isFromCurrentUser)
+                            Brush.linearGradient(listOf(AccentBlue.copy(0.8f), AccentCyan.copy(0.8f)))
+                        else androidx.compose.ui.graphics.SolidColor(FieldBg)
+                    )
+                    .border(
+                        width = 1.dp,
+                        color = if (isFromCurrentUser) Color.Transparent else Color(0xFFFFFFFF).copy(alpha = 0.1f),
+                        shape = RoundedCornerShape(
+                            topStart = 16.dp,
+                            topEnd = 16.dp,
+                            bottomStart = if (isFromCurrentUser) 16.dp else 4.dp,
+                            bottomEnd = if (isFromCurrentUser) 4.dp else 16.dp
+                        )
                     )
                     .padding(horizontal = 16.dp, vertical = 10.dp)
                     .widthIn(max = 280.dp)
             ) {
                 Text(
                     text = message.message,
-                    color = if (isFromCurrentUser) Color.White else Color.Black,
-                    fontSize = 16.sp
+                    color = TextPrimary,
+                    fontSize = 15.sp
                 )
             }
 
@@ -270,9 +333,9 @@ private fun MessageItem(
 
             Text(
                 text = timeText,
-                fontSize = 12.sp,
-                color = Color.Gray,
-                modifier = Modifier.padding(horizontal = 8.dp)
+                fontSize = 11.sp,
+                color = TextSecondary,
+                modifier = Modifier.padding(horizontal = 4.dp)
             )
         }
     }

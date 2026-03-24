@@ -12,14 +12,15 @@ data class Match(
     val timestamp: Date = Date(),
     val lastMessage: String = "",
     val lastMessageTime: Date? = null,
-    val isActive: Boolean = true
+    val isActive: Boolean = true,
+    // NOVOS CAMPOS AQUI:
+    val lastMessageSenderId: String = "",
+    val isLastMessageRead: Boolean = true
 ) {
-    // Função para obter o nome do outro usuário
     fun getOtherUserName(currentUserId: String): String {
         return if (currentUserId == user1Id) user2Name else user1Name
     }
 
-    // Função para obter o ID do outro usuário
     fun getOtherUserId(currentUserId: String): String {
         return if (currentUserId == user1Id) user2Id else user1Id
     }
