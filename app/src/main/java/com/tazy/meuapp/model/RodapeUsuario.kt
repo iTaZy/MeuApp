@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth // IMPORT IMPORTANTE AQUI
 import com.tazy.meuapp.R
 import com.tazy.meuapp.AccentCyan
 import com.tazy.meuapp.AccentPurple
@@ -24,6 +25,8 @@ import com.tazy.meuapp.BgDeep
 
 @Composable
 fun RodapeUsuario(navController: NavController, selected: String) {
+    // Pegamos o ID do usuário logado para poder abrir o próprio perfil dele
+    val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
 
     Box(
         modifier = Modifier
@@ -76,6 +79,18 @@ fun RodapeUsuario(navController: NavController, selected: String) {
                 label = "Conexões",
                 isSelected = selected == "Conexões",
                 onClick = { navController.navigate("TelaConexoes") }
+            )
+            // 👇 NOVO BOTÃO DE PERFIL
+            BotaoRodapePersonalizado(
+                iconRes = R.drawable.ic_perfil, // Certifique-se de ter um ícone com este nome ou troque para o que você já tem
+                label = "Perfil",
+                isSelected = selected == "Perfil",
+                onClick = {
+                    // Ao clicar, navegamos para a rota de perfil passando o NOSSO próprio ID!
+                    if (currentUserId.isNotEmpty()) {
+                        navController.navigate("perfil/$currentUserId")
+                    }
+                }
             )
         }
     }
