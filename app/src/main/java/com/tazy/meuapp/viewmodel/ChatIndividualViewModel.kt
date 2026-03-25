@@ -1,9 +1,9 @@
-// ChatViewModel.kt
 package com.tazy.meuapp.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.firestore.ListenerRegistration
@@ -15,13 +15,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Date
 
-// Estados para o Chat
 sealed class ChatUiState {
     object Loading : ChatUiState()
     data class Success(
         val messages: List<ChatMessage>,
         val otherUserName: String,
-        val currentUserId: String
+        val currentUserId: String,
+        val isArchived: Boolean,
+        val otherUserId: String // NOVO: Agora o Chat entrega o ID da outra pessoa para a tela
     ) : ChatUiState()
     data class Error(val message: String) : ChatUiState()
 }
@@ -36,6 +37,8 @@ class ChatIndividualViewModel : ViewModel() {
     private var messagesListener: ListenerRegistration? = null
     private var currentMatchId: String? = null
     private var otherUserName: String = ""
+    private var isChatArchived: Boolean = false
+    private var currentOtherUserId: String = "" // Guardamos o ID aqui
 
     fun loadMessages(matchId: String) {
         val currentUser = auth.currentUser
@@ -49,11 +52,7 @@ class ChatIndividualViewModel : ViewModel() {
                 _uiState.value = ChatUiState.Loading
                 currentMatchId = matchId
 
-                // Primeiro, buscar informações do match para obter o nome do outro usuário
-                val matchDoc = firestore.collection("matches")
-                    .document(matchId)
-                    .get()
-                    .await()
+                val matchDoc = firestore.collection("matches").document(matchId).get().await()
 
                 if (!matchDoc.exists()) {
                     _uiState.value = ChatUiState.Error("Match não encontrado")
@@ -68,15 +67,17 @@ class ChatIndividualViewModel : ViewModel() {
                     return@launch
                 }
 
-                // Buscar nome do outro usuário
-                val otherUserDoc = firestore.collection("usuarios")
-                    .document(otherUserId)
-                    .get()
-                    .await()
+                currentOtherUserId = otherUserId // Salva o ID da outra pessoa
 
-                otherUserName = otherUserDoc.getString("nome") ?: "Usuário"
+                val arquivadosPor = matchDoc.get("arquivadosPor") as? List<String> ?: emptyList()
+                isChatArchived = arquivadosPor.contains(currentUser.uid)
 
-                // Configurar listener em tempo real para as mensagens
+                val nicknames = matchDoc.get("nicknames") as? Map<String, String> ?: emptyMap()
+                val otherUserDoc = firestore.collection("usuarios").document(otherUserId).get().await()
+                val originalName = otherUserDoc.getString("nome") ?: "Usuário"
+
+                otherUserName = nicknames[currentUser.uid] ?: originalName
+
                 setupMessagesListener(matchId, currentUser.uid)
 
             } catch (e: Exception) {
@@ -113,28 +114,21 @@ class ChatIndividualViewModel : ViewModel() {
                     _uiState.value = ChatUiState.Success(
                         messages = messages,
                         otherUserName = otherUserName,
-                        currentUserId = currentUserId
+                        currentUserId = currentUserId,
+                        isArchived = isChatArchived,
+                        otherUserId = currentOtherUserId // Passa o ID para a UI
                     )
                 }
             }
     }
 
-
-
     fun sendMessage(matchId: String, messageText: String) {
         val currentUser = auth.currentUser ?: return
-
         viewModelScope.launch {
             try {
-                // Buscar o nome do usuário atual
-                val currentUserDoc = firestore.collection("usuarios")
-                    .document(currentUser.uid)
-                    .get()
-                    .await()
-
+                val currentUserDoc = firestore.collection("usuarios").document(currentUser.uid).get().await()
                 val currentUserName = currentUserDoc.getString("nome") ?: "Usuário"
 
-                // Criar dados da nova mensagem
                 val messageData = hashMapOf(
                     "matchId" to matchId,
                     "senderId" to currentUser.uid,
@@ -143,32 +137,15 @@ class ChatIndividualViewModel : ViewModel() {
                     "timestamp" to Date(),
                     "isRead" to false
                 )
+                firestore.collection("matches").document(matchId).collection("messages").add(messageData).await()
 
-                // Adicionar a mensagem na subcoleção do match
-                val messageRef = firestore.collection("matches")
-                    .document(matchId)
-                    .collection("messages")
-                    .add(messageData)
-                    .await()
-
-                // Log para debug
-                println("Mensagem enviada com sucesso. ID: ${messageRef.id}")
-
-                // Atualizar o documento do match com a última mensagem
                 val matchUpdateData = mapOf(
                     "lastMessage" to messageText,
                     "lastMessageTime" to Date(),
-                    "lastMessageSenderId" to currentUser.uid, // Salva quem enviou
-                    "isLastMessageRead" to false              // Marca como não lida
+                    "lastMessageSenderId" to currentUser.uid,
+                    "isLastMessageRead" to false
                 )
-
-                firestore.collection("matches")
-                    .document(matchId)
-                    .update(matchUpdateData)
-                    .await()
-
-                println("Match atualizado com última mensagem")
-
+                firestore.collection("matches").document(matchId).update(matchUpdateData).await()
             } catch (e: Exception) {
                 println("Erro ao enviar mensagem: ${e.localizedMessage}")
             }
@@ -177,10 +154,8 @@ class ChatIndividualViewModel : ViewModel() {
 
     fun markMessagesAsRead(matchId: String) {
         val currentUser = auth.currentUser ?: return
-
         viewModelScope.launch {
             try {
-                // Marcar como lidas todas as mensagens da subcoleção...
                 val unreadMessages = firestore.collection("matches")
                     .document(matchId)
                     .collection("messages")
@@ -192,15 +167,53 @@ class ChatIndividualViewModel : ViewModel() {
                 for (document in unreadMessages.documents) {
                     document.reference.update("isRead", true)
                 }
-
-                // ADICIONE ESTA LINHA: Marca o "Geral" do Match como lido também
                 firestore.collection("matches").document(matchId).update("isLastMessageRead", true)
-
-            } catch (e: Exception) {
-                // Falha silenciosa
-            }
+            } catch (e: Exception) { }
         }
     }
+
+    fun arquivarConversa(matchId: String, onSucesso: () -> Unit) {
+        val currentUser = auth.currentUser ?: return
+        viewModelScope.launch {
+            try {
+                firestore.collection("matches").document(matchId)
+                    .update("arquivadosPor", FieldValue.arrayUnion(currentUser.uid))
+                    .await()
+                onSucesso()
+            } catch (e: Exception) { }
+        }
+    }
+
+    fun desarquivarConversa(matchId: String, onSucesso: () -> Unit) {
+        val currentUser = auth.currentUser ?: return
+        viewModelScope.launch {
+            try {
+                firestore.collection("matches").document(matchId)
+                    .update("arquivadosPor", FieldValue.arrayRemove(currentUser.uid))
+                    .await()
+                onSucesso()
+            } catch (e: Exception) { }
+        }
+    }
+
+    fun salvarApelido(matchId: String, novoApelido: String, onSucesso: () -> Unit) {
+        val currentUser = auth.currentUser ?: return
+        viewModelScope.launch {
+            try {
+                firestore.collection("matches").document(matchId)
+                    .update("nicknames.${currentUser.uid}", novoApelido)
+                    .await()
+
+                otherUserName = novoApelido
+                val currentState = _uiState.value
+                if (currentState is ChatUiState.Success) {
+                    _uiState.value = currentState.copy(otherUserName = novoApelido)
+                }
+                onSucesso()
+            } catch (e: Exception) { }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
         messagesListener?.remove()

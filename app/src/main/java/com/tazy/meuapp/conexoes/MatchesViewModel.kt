@@ -1,4 +1,3 @@
-// MatchesViewModel.kt
 package com.tazy.meuapp.viewmodel
 
 import androidx.lifecycle.ViewModel
@@ -7,13 +6,19 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.tazy.meuapp.model.Match
-import com.tazy.meuapp.model.MatchesUiState
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.Date
+
+sealed class MatchesUiState {
+    object Loading : MatchesUiState()
+    data class Success(val matches: List<Match>, val arquivadas: List<Match> = emptyList()) : MatchesUiState()
+    data class Error(val message: String) : MatchesUiState()
+    object Empty : MatchesUiState()
+}
 
 class MatchesViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<MatchesUiState>(MatchesUiState.Loading)
@@ -35,7 +40,6 @@ class MatchesViewModel : ViewModel() {
 
         _uiState.value = MatchesUiState.Loading
 
-        // Usar SnapshotListener para atualizar em Tempo Real!
         firestore.collection("matches")
             .whereArrayContains("participants", currentUser.uid)
             .orderBy("lastMessageTime", Query.Direction.DESCENDING)
@@ -52,14 +56,13 @@ class MatchesViewModel : ViewModel() {
 
                 viewModelScope.launch {
                     try {
-                        val matches = mutableListOf<Match>()
+                        val matchesGerais = mutableListOf<Match>()
 
                         for (document in snapshot.documents) {
                             val participants = document.get("participants") as? List<String> ?: continue
                             val user1Id = participants.getOrNull(0) ?: continue
                             val user2Id = participants.getOrNull(1) ?: continue
 
-                            // Busca nomes
                             val user1Doc = firestore.collection("usuarios").document(user1Id).get().await()
                             val user2Doc = firestore.collection("usuarios").document(user2Id).get().await()
 
@@ -77,12 +80,21 @@ class MatchesViewModel : ViewModel() {
                                 lastMessageTime = document.getDate("lastMessageTime"),
                                 isActive = document.getBoolean("isActive") ?: true,
                                 lastMessageSenderId = document.getString("lastMessageSenderId") ?: "",
-                                isLastMessageRead = document.getBoolean("isLastMessageRead") ?: true
+                                isLastMessageRead = document.getBoolean("isLastMessageRead") ?: true,
+                                arquivadosPor = document.get("arquivadosPor") as? List<String> ?: emptyList(),
+                                nicknames = document.get("nicknames") as? Map<String, String> ?: emptyMap()
                             )
-                            matches.add(match)
+                            matchesGerais.add(match)
                         }
 
-                        _uiState.value = MatchesUiState.Success(matches)
+                        val ativas = matchesGerais.filter { !it.arquivadosPor.contains(currentUser.uid) }
+                        val arquivadas = matchesGerais.filter { it.arquivadosPor.contains(currentUser.uid) }
+
+                        if (ativas.isNotEmpty() || arquivadas.isNotEmpty()) {
+                            _uiState.value = MatchesUiState.Success(ativas, arquivadas)
+                        } else {
+                            _uiState.value = MatchesUiState.Empty
+                        }
 
                     } catch (e: Exception) {
                         _uiState.value = MatchesUiState.Error("Erro ao processar matches.")
@@ -91,12 +103,9 @@ class MatchesViewModel : ViewModel() {
             }
     }
 
-    // Função para criar um match quando duas pessoas se curtem
     suspend fun createMatchIfExists(likedUserId: String): Boolean {
         val currentUser = auth.currentUser ?: return false
-
         try {
-            // Verificar se o outro usuário também curtiu
             val mutualLikeQuery = firestore.collection("conexoes")
                 .whereEqualTo("userId", likedUserId)
                 .whereEqualTo("likedUserId", currentUser.uid)
@@ -105,7 +114,6 @@ class MatchesViewModel : ViewModel() {
                 .await()
 
             if (mutualLikeQuery.documents.isNotEmpty()) {
-                // Existe match mútuo, criar o documento de match
                 val matchData = hashMapOf(
                     "participants" to listOf(currentUser.uid, likedUserId),
                     "timestamp" to Date(),
@@ -113,16 +121,10 @@ class MatchesViewModel : ViewModel() {
                     "lastMessageTime" to null,
                     "isActive" to true
                 )
-
-                firestore.collection("matches")
-                    .add(matchData)
-                    .await()
-
-                // Recarregar matches
+                firestore.collection("matches").add(matchData).await()
                 loadMatches()
                 return true
             }
-
             return false
         } catch (e: Exception) {
             return false

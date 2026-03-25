@@ -27,9 +27,7 @@ class FeedViewModel @Inject constructor(
     val posts = _posts.asStateFlow()
     val loading = MutableStateFlow(false)
 
-    fun startListeningFeed(codigoCondominio: String) {
-        if (codigoCondominio.isBlank()) return
-
+    fun startListeningFeed() {
         loading.value = true
         stopListeningFeed()
 
@@ -38,41 +36,59 @@ class FeedViewModel @Inject constructor(
             return
         }
 
-        listenerRegistration = db.collection("posts")
-            .whereEqualTo("codigoCondominio", codigoCondominio)
-            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
-            .addSnapshotListener { snapshots, error ->
-                loading.value = false
+        viewModelScope.launch {
+            try {
+                // 1. Busca os gostos do usuário logado
+                val currentUserDoc = db.collection("usuarios").document(userId).get().await()
+                val meuInteresse = currentUserDoc.getString("interesse")
+                val minhasSubcategorias = currentUserDoc.get("subcategorias") as? List<String> ?: emptyList()
+                val meusOutrosInteresses = currentUserDoc.get("outrosInteresses") as? List<String> ?: emptyList()
 
-                if (error != null) {
-                    Log.e("FeedViewModel", "Erro no listener: ${error.message}")
-                    return@addSnapshotListener
-                }
+                val meusGostos = mutableSetOf<String>()
+                meuInteresse?.let { if (it.isNotBlank()) meusGostos.add(it) }
+                meusGostos.addAll(minhasSubcategorias.filter { it.isNotBlank() })
+                meusGostos.addAll(meusOutrosInteresses.filter { it.isNotBlank() })
 
-                snapshots?.let { docs ->
-                    val rawPosts = docs.documents.mapNotNull { doc ->
-                        doc.toObject(Post::class.java)?.copy(id = doc.id)
+                // 2. Ouve todos os posts do banco em tempo real
+                listenerRegistration = db.collection("posts")
+                    .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
+                    .addSnapshotListener { snapshots, error ->
+                        loading.value = false
+
+                        if (error != null) {
+                            Log.e("FeedViewModel", "Erro no listener: ${error.message}")
+                            return@addSnapshotListener
+                        }
+
+                        snapshots?.let { docs ->
+                            val rawPosts = docs.documents.mapNotNull { doc ->
+                                val post = doc.toObject(Post::class.java)?.copy(id = doc.id)
+
+                                if (post != null) {
+                                    val isMe = post.authorId == userId
+                                    val gostosPost = post.authorInterests.toSet()
+                                    val temInteresseEmComum = meusGostos.intersect(gostosPost).isNotEmpty()
+
+                                    // A REGRA DE OURO: Mostra se for meu post OU se tivermos gostos em comum
+                                    if (isMe || temInteresseEmComum) post else null
+                                } else null
+                            }
+
+                            checkLikesForPosts(userId, rawPosts)
+                        }
                     }
-
-                    checkLikesForPosts(userId, rawPosts)
-                }
+            } catch (e: Exception) {
+                loading.value = false
             }
+        }
     }
 
     private fun checkLikesForPosts(userId: String, rawPosts: List<Post>) {
         viewModelScope.launch {
             val postsWithLikes = rawPosts.map { post ->
                 val liked = try {
-                    db.collection("posts")
-                        .document(post.id)
-                        .collection("likes")
-                        .document(userId)
-                        .get()
-                        .await()
-                        .exists()
-                } catch (e: Exception) {
-                    false
-                }
+                    db.collection("posts").document(post.id).collection("likes").document(userId).get().await().exists()
+                } catch (e: Exception) { false }
                 post.copy(likedByUser = liked)
             }
             _posts.value = postsWithLikes
@@ -84,21 +100,37 @@ class FeedViewModel @Inject constructor(
         listenerRegistration = null
     }
 
-    fun criarPost(texto: String, nomeUsuario: String, codigoCondominio: String, onResult: (Boolean) -> Unit) {
+    fun criarPost(texto: String, nomeUsuario: String, onResult: (Boolean) -> Unit) {
         val user = auth.currentUser ?: return onResult(false)
 
-        val post = hashMapOf(
-            "authorId" to user.uid,
-            "authorName" to nomeUsuario,
-            "text" to texto,
-            "timestamp" to Timestamp.now(),
-            "likesCount" to 0,
-            "codigoCondominio" to codigoCondominio
-        )
+        viewModelScope.launch {
+            try {
+                // Pega os interesses do criador na hora de postar
+                val currentUserDoc = db.collection("usuarios").document(user.uid).get().await()
+                val meuInteresse = currentUserDoc.getString("interesse")
+                val minhasSubcategorias = currentUserDoc.get("subcategorias") as? List<String> ?: emptyList()
+                val meusOutrosInteresses = currentUserDoc.get("outrosInteresses") as? List<String> ?: emptyList()
 
-        db.collection("posts").add(post)
-            .addOnSuccessListener { onResult(true) }
-            .addOnFailureListener { onResult(false) }
+                val meusGostos = mutableSetOf<String>()
+                meuInteresse?.let { if (it.isNotBlank()) meusGostos.add(it) }
+                meusGostos.addAll(minhasSubcategorias.filter { it.isNotBlank() })
+                meusGostos.addAll(meusOutrosInteresses.filter { it.isNotBlank() })
+
+                val post = hashMapOf(
+                    "authorId" to user.uid,
+                    "authorName" to nomeUsuario,
+                    "text" to texto,
+                    "timestamp" to Timestamp.now(),
+                    "likesCount" to 0,
+                    "authorInterests" to meusGostos.toList() // Salva os interesses junto com o post
+                )
+
+                db.collection("posts").add(post).await()
+                onResult(true)
+            } catch (e: Exception) {
+                onResult(false)
+            }
+        }
     }
 
     fun toggleCurtirPost(post: Post) {
@@ -121,20 +153,9 @@ class FeedViewModel @Inject constructor(
         }
     }
 
-    // NOVO: função para excluir post
     fun excluirPost(postId: String, onResult: (Boolean) -> Unit) {
         db.collection("posts").document(postId).delete()
             .addOnSuccessListener { onResult(true) }
             .addOnFailureListener { onResult(false) }
-    }
-
-    suspend fun getCodigoCondominio(userId: String): String? {
-        return try {
-            val snapshot = db.collection("usuarios").document(userId).get().await()
-            snapshot.getString("codigoCondominio")
-        } catch (e: Exception) {
-            Log.e("FeedViewModel", "Erro ao buscar código do condomínio", e)
-            null
-        }
     }
 }

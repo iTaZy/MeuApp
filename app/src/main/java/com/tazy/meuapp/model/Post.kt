@@ -10,5 +10,5 @@ data class Post(
     val timestamp: Timestamp? = null,
     val likesCount: Int = 0,
     val likedByUser: Boolean = false,
-    val codigoCondominio: String = ""
+    val authorInterests: List<String> = emptyList() // Adicionado: Para o filtro do Feed funcionar!
 )

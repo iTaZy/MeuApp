@@ -21,7 +21,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.tazy.meuapp.model.CabecalhoUsuario
 import com.tazy.meuapp.model.RodapeUsuario
-import com.tazy.meuapp.model.MatchesUiState
+// 👇 O IMPORT CORRIGIDO ESTÁ AQUI:
+import com.tazy.meuapp.viewmodel.MatchesUiState
 import com.tazy.meuapp.viewmodel.MatchesViewModel
 import com.tazy.meuapp.ui.components.ItemConversa
 import java.text.SimpleDateFormat
@@ -37,7 +38,6 @@ fun TelaLobbyPrincipal(
     val state by viewModel.state.collectAsState()
     val matchesState by matchesViewModel.uiState.collectAsState()
 
-    // Paleta Klancore
     val BgDeep = Color(0xFF060B10)
     val BgMid = Color(0xFF0B1422)
     val AccentCyan = Color(0xFF4DD9E8)
@@ -48,10 +48,7 @@ fun TelaLobbyPrincipal(
     val gradientButton = Brush.linearGradient(listOf(AccentPurple, AccentBlue, AccentCyan))
 
     if (state.codigoCondominio.isBlank() && state.carregando) {
-        Box(
-            modifier = Modifier.fillMaxSize().background(BgDeep),
-            contentAlignment = Alignment.Center
-        ) {
+        Box(modifier = Modifier.fillMaxSize().background(BgDeep), contentAlignment = Alignment.Center) {
             CircularProgressIndicator(color = AccentCyan)
         }
         return
@@ -65,13 +62,9 @@ fun TelaLobbyPrincipal(
             .background(Brush.verticalGradient(listOf(BgDeep, BgMid, Color(0xFF050A0F))))
     ) {
         Scaffold(
-            containerColor = Color.Transparent, // Essencial para o gradiente de fundo aparecer
-            topBar = {
-                CabecalhoUsuario(state = state, navController = navController)
-            },
-            bottomBar = {
-                RodapeUsuario(navController = navController, selected = "Lobby")
-            }
+            containerColor = Color.Transparent,
+            topBar = { CabecalhoUsuario(state = state, navController = navController) },
+            bottomBar = { RodapeUsuario(navController = navController, selected = "Lobby") }
         ) { padding ->
             Column(
                 modifier = Modifier
@@ -102,9 +95,7 @@ fun TelaLobbyPrincipal(
                             height = 3.dp
                         )
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp)
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
                 ) {
                     Tab(
                         selected = selectedTabIndex == 0,
@@ -132,31 +123,18 @@ fun TelaLobbyPrincipal(
 
                 when (val currentState = matchesState) {
                     is MatchesUiState.Loading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize().padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
                             CircularProgressIndicator(color = AccentCyan)
                         }
                     }
 
                     is MatchesUiState.Error -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize().padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "Erro ao carregar conversas",
-                                    color = Color(0xFFFF5252),
-                                    textAlign = TextAlign.Center
-                                )
+                                Text(text = "Erro ao carregar conversas", color = Color(0xFFFF5252), textAlign = TextAlign.Center)
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(32.dp))
-                                        .background(gradientButton)
-                                        .fillMaxWidth(0.6f),
+                                    modifier = Modifier.clip(RoundedCornerShape(32.dp)).background(gradientButton).fillMaxWidth(0.6f),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     TextButton(onClick = { matchesViewModel.loadMatches() }) {
@@ -168,38 +146,16 @@ fun TelaLobbyPrincipal(
                     }
 
                     is MatchesUiState.Empty -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize().padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    text = "💬",
-                                    fontSize = 56.sp,
-                                    modifier = Modifier.padding(bottom = 16.dp)
-                                )
-                                Text(
-                                    text = "Nenhuma conversa ainda",
-                                    fontSize = 18.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = TextPrimary,
-                                    textAlign = TextAlign.Center
-                                )
+                                Text("💬", fontSize = 56.sp, modifier = Modifier.padding(bottom = 16.dp))
+                                Text("Nenhuma conversa ainda", fontSize = 18.sp, fontWeight = FontWeight.Bold, color = TextPrimary, textAlign = TextAlign.Center)
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text(
-                                    text = "Quando você fizer conexões, suas conversas aparecerão aqui!",
-                                    fontSize = 14.sp,
-                                    color = TextSecondary,
-                                    textAlign = TextAlign.Center,
-                                    modifier = Modifier.padding(horizontal = 32.dp)
-                                )
+                                Text("Quando você fizer conexões, suas conversas aparecerão aqui!", fontSize = 14.sp, color = TextSecondary, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
                                 Spacer(modifier = Modifier.height(24.dp))
 
                                 Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(32.dp))
-                                        .background(gradientButton)
-                                        .fillMaxWidth(0.7f),
+                                    modifier = Modifier.clip(RoundedCornerShape(32.dp)).background(gradientButton).fillMaxWidth(0.7f),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     TextButton(onClick = { navController.navigate("TelaConexoes") }) {
@@ -212,56 +168,59 @@ fun TelaLobbyPrincipal(
 
                     is MatchesUiState.Success -> {
                         if (selectedTabIndex == 0) {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize()
-                            ) {
-                                items(currentState.matches) { match ->
-                                    val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
-
-                                    val otherUserName = match.getOtherUserName(currentUserId)
-
-                                    val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
-                                    val displayTime = match.lastMessageTime?.let { timeFormat.format(it) }
-                                        ?: timeFormat.format(match.timestamp)
-
-                                    val displayMessage = if (match.lastMessage.isNotEmpty()) {
-                                        match.lastMessage
-                                    } else {
-                                        "Vocês se conectaram! Envie a primeira mensagem."
+                            if (currentState.matches.isEmpty()) {
+                                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("💬", fontSize = 56.sp, modifier = Modifier.padding(bottom = 16.dp))
+                                        Text("Sem conversas ativas", fontSize = 18.sp, color = TextSecondary)
                                     }
+                                }
+                            } else {
+                                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                    items(currentState.matches) { match ->
+                                        val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                                        val otherUserName = match.getOtherUserName(currentUserId)
+                                        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                                        val displayTime = match.lastMessageTime?.let { timeFormat.format(it) } ?: timeFormat.format(match.timestamp)
+                                        val displayMessage = if (match.lastMessage.isNotEmpty()) match.lastMessage else "Vocês se conectaram! Envie a primeira mensagem."
 
-                                    // Lógica: É não lida se a última mensagem NÃO for minha, e o status isLastMessageRead for false
-                                    val isUnread = match.lastMessageSenderId != currentUserId && !match.isLastMessageRead && match.lastMessageSenderId.isNotEmpty()
+                                        val isUnread = match.lastMessageSenderId != currentUserId && !match.isLastMessageRead && match.lastMessageSenderId.isNotEmpty()
 
-                                    ItemConversa(
-                                        nome = otherUserName,
-                                        mensagem = displayMessage,
-                                        horario = displayTime,
-                                        naoLida = isUnread, // PASSA O STATUS AQUI
-                                        onClick = {
-                                            navController.navigate("chat/${match.id}")
-                                        }
-                                    )
+                                        ItemConversa(
+                                            nome = otherUserName,
+                                            mensagem = displayMessage,
+                                            horario = displayTime,
+                                            naoLida = isUnread,
+                                            onClick = { navController.navigate("chat/${match.id}") }
+                                        )
+                                    }
                                 }
                             }
                         } else {
-                            // Aba de Arquivadas
-                            Box(
-                                modifier = Modifier.fillMaxSize().padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = "📁",
-                                        fontSize = 56.sp,
-                                        modifier = Modifier.padding(bottom = 16.dp)
-                                    )
-                                    Text(
-                                        text = "Nenhuma conversa arquivada",
-                                        fontSize = 16.sp,
-                                        color = TextSecondary,
-                                        textAlign = TextAlign.Center
-                                    )
+                            if (currentState.arquivadas.isEmpty()) {
+                                Box(modifier = Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.Center) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text("📁", fontSize = 56.sp, modifier = Modifier.padding(bottom = 16.dp))
+                                        Text("Nenhuma conversa arquivada", fontSize = 16.sp, color = TextSecondary, textAlign = TextAlign.Center)
+                                    }
+                                }
+                            } else {
+                                LazyColumn(modifier = Modifier.fillMaxSize()) {
+                                    items(currentState.arquivadas) { match ->
+                                        val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
+                                        val otherUserName = match.getOtherUserName(currentUserId)
+                                        val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
+                                        val displayTime = match.lastMessageTime?.let { timeFormat.format(it) } ?: timeFormat.format(match.timestamp)
+                                        val displayMessage = if (match.lastMessage.isNotEmpty()) match.lastMessage else "Conversa arquivada."
+
+                                        ItemConversa(
+                                            nome = otherUserName,
+                                            mensagem = displayMessage,
+                                            horario = displayTime,
+                                            naoLida = false, // Arquivadas não chamam a atenção visual
+                                            onClick = { navController.navigate("chat/${match.id}") }
+                                        )
+                                    }
                                 }
                             }
                         }

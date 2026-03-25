@@ -8,6 +8,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.meuapp.ui.telas.TelaConexoes
+import com.tazy.meuapp.ui.telas.TelaPerfilUsuario
 
 @Composable
 fun NavGraph() {
@@ -79,6 +80,10 @@ fun NavGraph() {
                 navController = navController,
                 matchId = matchId
             )
+        }
+        composable("perfil/{userId}") { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            TelaPerfilUsuario(navController = navController, userId = userId)
         }
     }
 }
