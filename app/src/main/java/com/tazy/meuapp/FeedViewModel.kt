@@ -15,6 +15,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import com.tazy.meuapp.model.Post
+import com.tazy.meuapp.model.Comment
 
 @HiltViewModel
 class FeedViewModel @Inject constructor(
@@ -23,8 +24,14 @@ class FeedViewModel @Inject constructor(
 ) : ViewModel() {
 
     private var listenerRegistration: ListenerRegistration? = null
+    private var commentsListener: ListenerRegistration? = null // Listener para os comentários
+
     private val _posts = MutableStateFlow<List<Post>>(emptyList())
     val posts = _posts.asStateFlow()
+
+    private val _comentarios = MutableStateFlow<List<Comment>>(emptyList())
+    val comentarios = _comentarios.asStateFlow()
+
     val loading = MutableStateFlow(false)
 
     fun startListeningFeed() {
@@ -38,7 +45,6 @@ class FeedViewModel @Inject constructor(
 
         viewModelScope.launch {
             try {
-                // 1. Busca os gostos do usuário logado
                 val currentUserDoc = db.collection("usuarios").document(userId).get().await()
                 val meuInteresse = currentUserDoc.getString("interesse")
                 val minhasSubcategorias = currentUserDoc.get("subcategorias") as? List<String> ?: emptyList()
@@ -49,7 +55,6 @@ class FeedViewModel @Inject constructor(
                 meusGostos.addAll(minhasSubcategorias.filter { it.isNotBlank() })
                 meusGostos.addAll(meusOutrosInteresses.filter { it.isNotBlank() })
 
-                // 2. Ouve todos os posts do banco em tempo real
                 listenerRegistration = db.collection("posts")
                     .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.DESCENDING)
                     .addSnapshotListener { snapshots, error ->
@@ -69,7 +74,6 @@ class FeedViewModel @Inject constructor(
                                     val gostosPost = post.authorInterests.toSet()
                                     val temInteresseEmComum = meusGostos.intersect(gostosPost).isNotEmpty()
 
-                                    // A REGRA DE OURO: Mostra se for meu post OU se tivermos gostos em comum
                                     if (isMe || temInteresseEmComum) post else null
                                 } else null
                             }
@@ -98,14 +102,74 @@ class FeedViewModel @Inject constructor(
     fun stopListeningFeed() {
         listenerRegistration?.remove()
         listenerRegistration = null
+        fecharComentarios()
     }
+
+    // --- LÓGICA DE COMENTÁRIOS AQUI ---
+
+    fun abrirComentarios(postId: String) {
+        commentsListener?.remove()
+        _comentarios.value = emptyList() // Limpa os antigos
+
+        commentsListener = db.collection("posts").document(postId).collection("comments")
+            .orderBy("timestamp", com.google.firebase.firestore.Query.Direction.ASCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null || snapshot == null) return@addSnapshotListener
+
+                val commentsList = snapshot.documents.mapNotNull { doc ->
+                    doc.toObject(Comment::class.java)?.copy(id = doc.id)
+                }
+                _comentarios.value = commentsList
+            }
+    }
+
+    fun fecharComentarios() {
+        commentsListener?.remove()
+        commentsListener = null
+        _comentarios.value = emptyList()
+    }
+
+    fun adicionarComentario(postId: String, texto: String, nomeUsuario: String) {
+        val user = auth.currentUser ?: return
+
+        val commentData = hashMapOf(
+            "authorId" to user.uid,
+            "authorName" to nomeUsuario,
+            "text" to texto,
+            "timestamp" to Timestamp.now()
+        )
+
+        // 🚀 ATUALIZAÇÃO OTIMISTA: Atualiza o número na UI na mesma hora!
+        val currentState = _posts.value
+        val updatedPosts = currentState.map { post ->
+            if (post.id == postId) {
+                post.copy(commentsCount = post.commentsCount + 1)
+            } else {
+                post
+            }
+        }
+        _posts.value = updatedPosts
+
+        // Salva no Firebase em segundo plano
+        db.collection("posts").document(postId).collection("comments").add(commentData)
+            .addOnSuccessListener {
+                // Incrementa o contador oficial no Firebase
+                db.collection("posts").document(postId).update("commentsCount", FieldValue.increment(1))
+            }
+            .addOnFailureListener { e ->
+                Log.e("FeedViewModel", "Erro ao salvar comentário: ", e)
+                // Se a internet cair e der erro, ele desfaz o número na tela
+                _posts.value = currentState
+            }
+    }
+
+    // ----------------------------------
 
     fun criarPost(texto: String, nomeUsuario: String, onResult: (Boolean) -> Unit) {
         val user = auth.currentUser ?: return onResult(false)
 
         viewModelScope.launch {
             try {
-                // Pega os interesses do criador na hora de postar
                 val currentUserDoc = db.collection("usuarios").document(user.uid).get().await()
                 val meuInteresse = currentUserDoc.getString("interesse")
                 val minhasSubcategorias = currentUserDoc.get("subcategorias") as? List<String> ?: emptyList()
@@ -122,7 +186,8 @@ class FeedViewModel @Inject constructor(
                     "text" to texto,
                     "timestamp" to Timestamp.now(),
                     "likesCount" to 0,
-                    "authorInterests" to meusGostos.toList() // Salva os interesses junto com o post
+                    "commentsCount" to 0, // Inicia zerado
+                    "authorInterests" to meusGostos.toList()
                 )
 
                 db.collection("posts").add(post).await()

@@ -1,4 +1,3 @@
-// TelaPrincipalViewModel.kt
 package com.tazy.meuapp
 
 import android.util.Log
@@ -15,7 +14,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-
 
 class TelaPrincipalViewModel : ViewModel() {
 
@@ -41,37 +39,57 @@ class TelaPrincipalViewModel : ViewModel() {
             return@launch
         }
 
-        val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
-        val nome = usuarioDoc.getString("nome") ?: ""
-        val meusGrupos = usuarioDoc.get("grupos") as? List<String> ?: emptyList()
-        val interesses = usuarioDoc.get("interesses") as? List<String> ?: emptyList()
-        val meuCodigo = usuarioDoc.getString("codigoCondominio") ?: ""
+        try {
+            val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
+            val nome = usuarioDoc.getString("nome") ?: ""
+            val meusGrupos = usuarioDoc.get("grupos") as? List<String> ?: emptyList()
 
-        _state.value = _state.value.copy(
-            nomeUsuario = nome,
-            codigoCondominio = meuCodigo
-        )
+            val interessePrincipal = usuarioDoc.getString("interesse") ?: ""
+            val subcategorias = usuarioDoc.get("subcategorias") as? List<String> ?: emptyList()
+            val outrosInteresses = usuarioDoc.get("outrosInteresses") as? List<String> ?: emptyList()
 
-        observarUsuario()
-        carregarGruposAtivos(meuCodigo, uid)
-        carregarGruposRecomendados(meuCodigo, meusGrupos, interesses)
+            val todosInteresses = mutableSetOf<String>()
+            if (interessePrincipal.isNotBlank()) todosInteresses.add(interessePrincipal)
+            todosInteresses.addAll(subcategorias.filter { it.isNotBlank() })
+            todosInteresses.addAll(outrosInteresses.filter { it.isNotBlank() })
 
-        _state.value = _state.value.copy(carregando = false)
+            _state.value = _state.value.copy(nomeUsuario = nome)
+
+            observarUsuario()
+            carregarGruposAtivos(uid)
+            carregarGruposRecomendados(meusGrupos, todosInteresses.toList())
+
+        } catch (e: Exception) {
+            _state.value = _state.value.copy(erro = "Erro ao carregar dados: ${e.message}", carregando = false)
+        }
     }
 
     fun atualizarDados() {
         val current = _state.value
         viewModelScope.launch {
             _state.value = current.copy(carregando = true)
-            val uid = auth.currentUser?.uid.orEmpty()
-            val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
-            carregarGruposAtivos(current.codigoCondominio, uid)
-            carregarGruposRecomendados(
-                current.codigoCondominio,
-                usuarioDoc.get("grupos") as? List<String> ?: emptyList(),
-                usuarioDoc.get("interesses") as? List<String> ?: emptyList()
-            )
-            _state.value = _state.value.copy(carregando = false)
+            val uid = auth.currentUser?.uid ?: return@launch
+
+            try {
+                val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
+
+                val interessePrincipal = usuarioDoc.getString("interesse") ?: ""
+                val subcategorias = usuarioDoc.get("subcategorias") as? List<String> ?: emptyList()
+                val outrosInteresses = usuarioDoc.get("outrosInteresses") as? List<String> ?: emptyList()
+
+                val todosInteresses = mutableSetOf<String>()
+                if (interessePrincipal.isNotBlank()) todosInteresses.add(interessePrincipal)
+                todosInteresses.addAll(subcategorias.filter { it.isNotBlank() })
+                todosInteresses.addAll(outrosInteresses.filter { it.isNotBlank() })
+
+                carregarGruposAtivos(uid)
+                carregarGruposRecomendados(
+                    usuarioDoc.get("grupos") as? List<String> ?: emptyList(),
+                    todosInteresses.toList()
+                )
+            } catch (e: Exception) {
+                _state.value = _state.value.copy(erro = "Erro ao atualizar: ${e.message}", carregando = false)
+            }
         }
     }
 
@@ -89,10 +107,9 @@ class TelaPrincipalViewModel : ViewModel() {
             }
     }
 
-    private fun carregarGruposAtivos(codigoCondominio: String, uid: String) {
+    private fun carregarGruposAtivos(uid: String) {
         gruposListener?.remove()
         gruposListener = firestore.collection("grupos")
-            .whereEqualTo("codigoCondominio", codigoCondominio)
             .whereArrayContains("participantes", uid)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -101,64 +118,82 @@ class TelaPrincipalViewModel : ViewModel() {
                 }
                 val chats = snapshot?.documents
                     ?.mapNotNull { doc ->
+                        val naoLidasMap = doc.get("naoLidas") as? Map<String, Number>
+                        val minhasNaoLidas = naoLidasMap?.get(uid)?.toInt() ?: 0
+
                         Chat(
                             id = doc.id,
                             nome = doc.getString("nome") ?: return@mapNotNull null,
                             ultimaMensagem = doc.getString("ultimaMensagem") ?: "",
-                            mensagensNaoLidas = (doc.getLong("mensagensNaoLidas") ?: 0).toInt()
+                            mensagensNaoLidas = minhasNaoLidas
                         )
                     }?.distinctBy { it.id } ?: emptyList()
 
-                _state.value = _state.value.copy(chatsAtivos = chats)
+                _state.value = _state.value.copy(chatsAtivos = chats, carregando = false)
             }
     }
 
     private fun carregarGruposRecomendados(
-        codigoCondominio: String,
         gruposUsuario: List<String>,
         interesses: List<String>
     ) = viewModelScope.launch {
         _state.value = _state.value.copy(carregando = true)
         try {
-            println("Buscando grupos com código: $codigoCondominio e interesses: $interesses")
+            val gruposRecomendados = mutableListOf<GrupoRecomendado>()
 
-            val docs = if (interesses.isNotEmpty()) {
-                firestore.collection("grupos")
-                    .whereEqualTo("codigoCondominio", codigoCondominio)
-                    .whereArrayContainsAny("interesses", interesses.take(10))
+            if (interesses.isNotEmpty()) {
+                val interessesParaBusca = interesses.take(10)
+                val docsInteresses = firestore.collection("grupos")
+                    .whereArrayContainsAny("interesses", interessesParaBusca)
+                    .limit(20)
                     .get()
                     .await()
-            } else {
-                firestore.collection("grupos")
-                    .whereEqualTo("codigoCondominio", codigoCondominio)
+
+                val gruposPorInteresse = docsInteresses.documents
+                    .filter { !gruposUsuario.contains(it.id) }
+                    .mapNotNull { doc ->
+                        GrupoRecomendado(
+                            id = doc.id,
+                            nome = doc.getString("nome") ?: return@mapNotNull null,
+                            descricao = doc.getString("descricao") ?: "Grupo sem descrição",
+                            relevancia = (doc.getLong("relevancia") ?: 3).toInt(),
+                            membrosCount = (doc.getLong("membrosCount") ?: 1).toInt(),
+                            interesses = doc.get("interesses") as? List<String> ?: emptyList() // AQUI!
+                        )
+                    }
+                gruposRecomendados.addAll(gruposPorInteresse)
+            }
+
+            if (gruposRecomendados.size < 5) {
+                val docsPopulares = firestore.collection("grupos")
                     .orderBy("membrosCount", Query.Direction.DESCENDING)
                     .limit(10)
                     .get()
                     .await()
+
+                val gruposPopulares = docsPopulares.documents
+                    .filter { !gruposUsuario.contains(it.id) && gruposRecomendados.none { g -> g.id == it.id } }
+                    .mapNotNull { doc ->
+                        GrupoRecomendado(
+                            id = doc.id,
+                            nome = doc.getString("nome") ?: return@mapNotNull null,
+                            descricao = doc.getString("descricao") ?: "Grupo sem descrição",
+                            relevancia = (doc.getLong("relevancia") ?: 3).toInt(),
+                            membrosCount = (doc.getLong("membrosCount") ?: 1).toInt(),
+                            interesses = doc.get("interesses") as? List<String> ?: emptyList() // E AQUI!
+                        )
+                    }
+                gruposRecomendados.addAll(gruposPopulares)
             }
 
-            val grupos = docs.documents
-                .filter { doc -> !gruposUsuario.contains(doc.id) }
-                .mapNotNull { doc ->
-                    GrupoRecomendado(
-                        id = doc.id,
-                        nome = doc.getString("nome") ?: return@mapNotNull null,
-                        descricao = doc.getString("descricao") ?: "Grupo sem descrição",
-                        relevancia = (doc.getLong("relevancia") ?: 3).toInt(),
-                        membrosCount = (doc.getLong("membrosCount") ?: 1).toInt()
-                    )
-                }
-
-            println("Encontrados ${grupos.size} grupos recomendados")
-
             _state.value = _state.value.copy(
-                gruposRecomendados = grupos,
+                gruposRecomendados = gruposRecomendados.distinctBy { it.id },
                 carregando = false,
                 erro = null
             )
         } catch (e: Exception) {
             _state.value = _state.value.copy(
-                erro = "Erro ao carregar grupos: ${e.message}",
+                erro = "Erro ao carregar recomendações: ${e.message}",
                 carregando = false
             )
         }
@@ -185,13 +220,7 @@ class TelaPrincipalViewModel : ViewModel() {
             )
             batch.commit().await()
 
-            val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
-            carregarGruposRecomendados(
-                _state.value.codigoCondominio,
-                usuarioDoc.get("grupos") as? List<String> ?: emptyList(),
-                usuarioDoc.get("interesses") as? List<String> ?: emptyList()
-            )
-            _state.value = _state.value.copy(carregando = false)
+            atualizarDados()
         } catch (e: Exception) {
             _state.value = _state.value.copy(
                 erro = "Erro ao entrar no grupo: ${e.message}",
@@ -217,13 +246,7 @@ class TelaPrincipalViewModel : ViewModel() {
             )
             batch.commit().await()
 
-            val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
-            carregarGruposRecomendados(
-                _state.value.codigoCondominio,
-                usuarioDoc.get("grupos") as? List<String> ?: emptyList(),
-                usuarioDoc.get("interesses") as? List<String> ?: emptyList()
-            )
-            _state.value = _state.value.copy(carregando = false)
+            atualizarDados()
         } catch (e: Exception) {
             _state.value = _state.value.copy(
                 erro = "Erro ao sair do grupo: ${e.message}",
@@ -231,6 +254,7 @@ class TelaPrincipalViewModel : ViewModel() {
             )
         }
     }
+
     override fun onCleared() {
         super.onCleared()
         usuarioListener?.remove()

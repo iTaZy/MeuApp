@@ -15,11 +15,13 @@ data class Chat(
 )
 
 data class GrupoRecomendado(
-    val id: String,
-    val nome: String,
-    val descricao: String,
-    val relevancia: Int,
-    val membrosCount: Int
+    val id: String = "",
+    val nome: String = "",
+    val descricao: String = "",
+    val relevancia: Int = 3,
+    val membrosCount: Int = 1,
+    // 👇 Adicione apenas esta linha na classe que já existe aí:
+    val interesses: List<String> = emptyList()
 )
 
 

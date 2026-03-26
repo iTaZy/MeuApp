@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -30,6 +31,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.tazy.meuapp.model.CabecalhoUsuario
 import com.tazy.meuapp.model.RodapeUsuario
 import com.tazy.meuapp.ui.components.PostItem
+import com.tazy.meuapp.model.Post
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,12 +43,18 @@ fun TelaFeedNoticias(
     userViewModel: TelaPrincipalViewModel = hiltViewModel()
 ) {
     val posts by viewModel.posts.collectAsState()
+    val comentarios by viewModel.comentarios.collectAsState()
     val loading by viewModel.loading.collectAsState()
     val user = FirebaseAuth.getInstance().currentUser
     val state by userViewModel.state.collectAsState()
 
     var showDialog by remember { mutableStateOf(false) }
     var novoPostTexto by remember { mutableStateOf("") }
+
+    // Estado do BottomSheet de Comentários
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    var postSelecionadoParaComentar by remember { mutableStateOf<Post?>(null) }
+    var novoComentarioTexto by remember { mutableStateOf("") }
 
     // Cores KLANCORE
     val BgDeep = Color(0xFF060B10)
@@ -81,7 +91,7 @@ fun TelaFeedNoticias(
             floatingActionButton = {
                 Box(
                     modifier = Modifier
-                        .size(56.dp) // Tamanho padrão de um FAB
+                        .size(56.dp)
                         .clip(CircleShape)
                         .background(gradientButton)
                         .clickable { showDialog = true },
@@ -97,6 +107,7 @@ fun TelaFeedNoticias(
             }
         ) { paddingValues ->
 
+            // DIALOGO DE NOVO POST
             if (showDialog) {
                 AlertDialog(
                     onDismissRequest = { showDialog = false },
@@ -107,18 +118,11 @@ fun TelaFeedNoticias(
                             value = novoPostTexto,
                             onValueChange = { novoPostTexto = it },
                             placeholder = { Text("O que você está pensando?", color = TextSecondary) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(FieldBg),
+                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(FieldBg),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = AccentCyan,
-                                unfocusedBorderColor = FieldBorder,
-                                focusedTextColor = TextPrimary,
-                                unfocusedTextColor = TextPrimary,
-                                cursorColor = AccentCyan,
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent
+                                focusedBorderColor = AccentCyan, unfocusedBorderColor = FieldBorder,
+                                focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                                cursorColor = AccentCyan, focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent
                             ),
                             minLines = 3
                         )
@@ -132,8 +136,6 @@ fun TelaFeedNoticias(
                                         if (success) {
                                             showDialog = false
                                             novoPostTexto = ""
-                                        } else {
-                                            Log.e("TelaFeedNoticias", "Erro ao criar post")
                                         }
                                     }
                                 }
@@ -150,17 +152,14 @@ fun TelaFeedNoticias(
                 )
             }
 
+            // LISTA DE POSTS
             SwipeRefresh(
                 state = refreshState,
                 onRefresh = { viewModel.startListeningFeed() },
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues)
+                modifier = Modifier.fillMaxSize().padding(paddingValues)
             ) {
                 Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = 16.dp)
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)
                 ) {
                     Text(
                         text = "Feed de Notícias",
@@ -174,52 +173,119 @@ fun TelaFeedNoticias(
                         LinearProgressIndicator(color = AccentCyan, modifier = Modifier.fillMaxWidth())
                     }
 
-                    when {
-                        posts.isEmpty() && !loading -> {
-                            Box(
-                                modifier = Modifier.fillMaxSize(),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text("🪐", fontSize = 56.sp, modifier = Modifier.padding(bottom = 16.dp))
-                                    Text(
-                                        text = "Nenhum post no seu radar.",
-                                        color = TextPrimary,
-                                        fontWeight = FontWeight.Bold,
-                                        fontSize = 18.sp
-                                    )
-                                    Spacer(modifier = Modifier.height(8.dp))
-                                    Text(
-                                        text = "Seja o primeiro a compartilhar algo com a galera que curte as mesmas coisas que você!",
-                                        color = TextSecondary,
-                                        textAlign = TextAlign.Center,
-                                        modifier = Modifier.padding(horizontal = 32.dp)
-                                    )
+                    if (posts.isEmpty() && !loading) {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text("🪐", fontSize = 56.sp, modifier = Modifier.padding(bottom = 16.dp))
+                                Text("Nenhum post no seu radar.", color = TextPrimary, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Seja o primeiro a compartilhar algo com a galera que curte as mesmas coisas que você!", color = TextSecondary, textAlign = TextAlign.Center, modifier = Modifier.padding(horizontal = 32.dp))
+                            }
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 80.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(posts) { post ->
+                                PostItem(
+                                    post = post,
+                                    onLikeClick = { viewModel.toggleCurtirPost(post) },
+                                    onCommentClick = {
+                                        postSelecionadoParaComentar = post
+                                        viewModel.abrirComentarios(post.id)
+                                    },
+                                    onDeleteClick = { viewModel.excluirPost(post.id) { } }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // BOTTOM SHEET DOS COMENTÁRIOS
+        if (postSelecionadoParaComentar != null) {
+            ModalBottomSheet(
+                onDismissRequest = {
+                    postSelecionadoParaComentar = null
+                    viewModel.fecharComentarios()
+                    novoComentarioTexto = ""
+                },
+                sheetState = sheetState,
+                containerColor = BgMid, // Fundo Neon Dark
+                dragHandle = { BottomSheetDefaults.DragHandle(color = TextSecondary) }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .fillMaxHeight(0.7f) // Ocupa 70% da tela
+                        .padding(horizontal = 16.dp)
+                ) {
+                    Text("Comentários", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TextPrimary, modifier = Modifier.padding(bottom = 16.dp))
+
+                    // LISTA DE COMENTARIOS
+                    LazyColumn(
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(bottom = 16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        if (comentarios.isEmpty()) {
+                            item {
+                                Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                    Text("Seja o primeiro a comentar!", color = TextSecondary, fontSize = 14.sp)
+                                }
+                            }
+                        } else {
+                            items(comentarios) { comentario ->
+                                val timeFormat = SimpleDateFormat("dd/MM HH:mm", Locale.getDefault())
+                                val timeText = comentario.timestamp?.toDate()?.let { timeFormat.format(it) } ?: ""
+
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(FieldBg).padding(12.dp)
+                                ) {
+                                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                                        Text(comentario.authorName, fontWeight = FontWeight.Bold, fontSize = 14.sp, color = AccentCyan)
+                                        Text(timeText, fontSize = 11.sp, color = TextSecondary)
+                                    }
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(comentario.text, fontSize = 14.sp, color = TextPrimary)
                                 }
                             }
                         }
-                        else -> {
-                            LazyColumn(
-                                modifier = Modifier.fillMaxSize(),
-                                contentPadding = PaddingValues(bottom = 80.dp),
-                                verticalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                items(posts) { post ->
-                                    PostItem(
-                                        post = post,
-                                        onLikeClick = { liked ->
-                                            viewModel.toggleCurtirPost(post)
-                                        },
-                                        onDeleteClick = {
-                                            viewModel.excluirPost(post.id) { success ->
-                                                if (!success) {
-                                                    Log.e("TelaFeedNoticias", "Erro ao excluir post")
-                                                }
-                                            }
-                                        }
-                                    )
+                    }
+
+                    // CAIXA DE DIGITAR O COMENTÁRIO
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 32.dp, top = 8.dp),
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        OutlinedTextField(
+                            value = novoComentarioTexto,
+                            onValueChange = { novoComentarioTexto = it },
+                            modifier = Modifier.weight(1f).clip(RoundedCornerShape(24.dp)).background(FieldBg),
+                            placeholder = { Text("Adicione um comentário...", color = TextSecondary) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = AccentCyan, unfocusedBorderColor = Color.Transparent,
+                                cursorColor = AccentCyan, focusedTextColor = TextPrimary, unfocusedTextColor = TextPrimary,
+                                focusedContainerColor = Color.Transparent, unfocusedContainerColor = Color.Transparent
+                            ),
+                            shape = RoundedCornerShape(24.dp),
+                            maxLines = 3
+                        )
+                        Spacer(modifier = Modifier.width(12.dp))
+                        IconButton(
+                            onClick = {
+                                if (novoComentarioTexto.trim().isNotEmpty()) {
+                                    val userName = state.nomeUsuario ?: "Usuário"
+                                    viewModel.adicionarComentario(postSelecionadoParaComentar!!.id, novoComentarioTexto.trim(), userName)
+                                    novoComentarioTexto = ""
                                 }
-                            }
+                            },
+                            modifier = Modifier.size(50.dp).clip(CircleShape).background(gradientButton)
+                        ) {
+                            Icon(Icons.Default.Send, contentDescription = "Enviar", tint = Color.White, modifier = Modifier.padding(start = 4.dp))
                         }
                     }
                 }

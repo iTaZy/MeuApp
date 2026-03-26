@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.ListenerRegistration
 import com.google.firebase.firestore.Source
@@ -40,8 +41,20 @@ class ChatViewModel : ViewModel() {
         carregarDadosGrupo(grupoId) { nome ->
             _state.value = _state.value.copy(nomeGrupo = nome)
         }
-    }
 
+        // Zera o contador de mensagens não lidas APENAS para o usuário atual!
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            viewModelScope.launch {
+                try {
+                    firestore.collection("grupos").document(grupoId)
+                        .update("naoLidas.$uid", 0)
+                } catch (e: Exception) {
+                    Log.e("ChatViewModel", "Erro ao zerar notificações", e)
+                }
+            }
+        }
+    }
     fun carregarDadosGrupo(grupoId: String, onNomeCarregado: (String) -> Unit) = viewModelScope.launch {
         try {
             val document = firestore.collection("grupos").document(grupoId).get().await()
@@ -101,6 +114,32 @@ class ChatViewModel : ViewModel() {
             .document(grupoId)
             .collection("mensagens")
             .add(novaMensagem)
+            .addOnSuccessListener {
+                viewModelScope.launch {
+                    try {
+                        // 1. Pega a lista de participantes do grupo
+                        val grupoDoc = firestore.collection("grupos").document(grupoId).get().await()
+                        val participantes = grupoDoc.get("participantes") as? List<String> ?: emptyList()
+
+                        // 2. Prepara a atualização da última mensagem
+                        val atualizacoes = mutableMapOf<String, Any>(
+                            "ultimaMensagem" to "$nomeUsuarioLogado: $texto"
+                        )
+
+                        // 3. Adiciona +1 na notificação de TODO MUNDO, menos na sua!
+                        for (participante in participantes) {
+                            if (participante != uid) {
+                                atualizacoes["naoLidas.$participante"] = FieldValue.increment(1)
+                            }
+                        }
+
+                        // 4. Salva tudo no banco de uma vez
+                        firestore.collection("grupos").document(grupoId).update(atualizacoes)
+                    } catch (e: Exception) {
+                        Log.e("ChatViewModel", "Erro ao atualizar notificações", e)
+                    }
+                }
+            }
             .addOnFailureListener {
                 _state.value = _state.value.copy(erro = "Erro ao enviar mensagem")
             }
@@ -111,20 +150,17 @@ class ChatViewModel : ViewModel() {
     fun carregarParticipantes(grupoId: String, onResultado: (List<Participante>) -> Unit) {
         viewModelScope.launch {
             try {
-                // 1. Primeiro busca o grupo para verificar se o usuário é participante
                 val grupoDoc = firestore.collection("grupos").document(grupoId)
                     .get(Source.SERVER)
                     .await()
 
                 val participantesIds = grupoDoc.get("participantes") as? List<String> ?: emptyList()
 
-                // 2. Verifica se o usuário atual tem permissão
                 val currentUser = auth.currentUser?.uid
                 if (currentUser !in participantesIds) {
                     throw Exception("Usuário não é membro deste grupo")
                 }
 
-                // 3. Busca os dados mínimos necessários dos usuários
                 val participantes = participantesIds.map { userId ->
                     val userDoc = firestore.collection("usuarios").document(userId)
                         .get(Source.SERVER)
@@ -142,6 +178,7 @@ class ChatViewModel : ViewModel() {
             }
         }
     }
+
     override fun onCleared() {
         super.onCleared()
         mensagensListener?.remove()

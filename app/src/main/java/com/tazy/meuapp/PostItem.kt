@@ -2,6 +2,7 @@ package com.tazy.meuapp.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -29,6 +30,7 @@ import java.util.Locale
 fun PostItem(
     post: Post,
     onLikeClick: (Boolean) -> Unit,
+    onCommentClick: () -> Unit, // NOVO PARÂMETRO
     onDeleteClick: () -> Unit
 ) {
     var liked by remember { mutableStateOf(post.likedByUser) }
@@ -100,22 +102,35 @@ fun PostItem(
             HorizontalDivider(color = TextSecondary.copy(alpha = 0.2f))
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Footer (Likes)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(
-                    onClick = {
-                        liked = !liked
-                        likesCount = if (liked) likesCount + 1 else likesCount - 1
-                        onLikeClick(liked)
-                    }
-                ) {
+            // Footer (Likes e Comentários)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // LIKE
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable {
+                    liked = !liked
+                    likesCount = if (liked) likesCount + 1 else likesCount - 1
+                    onLikeClick(liked)
+                }.padding(end = 16.dp, top = 4.dp, bottom = 4.dp)) {
                     Icon(
                         imageVector = if (liked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = if (liked) "Descurtir" else "Curtir",
-                        tint = if (liked) Color(0xFFFF5252) else TextSecondary
+                        tint = if (liked) Color(0xFFFF5252) else TextSecondary,
+                        modifier = Modifier.size(22.dp)
                     )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("$likesCount", fontSize = 14.sp, color = if (liked) Color(0xFFFF5252) else TextSecondary, fontWeight = FontWeight.Medium)
                 }
-                Text("$likesCount curtidas", fontSize = 14.sp, color = if (liked) Color(0xFFFF5252) else TextSecondary, fontWeight = FontWeight.Medium)
+
+                // COMENTÁRIO
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.clickable {
+                    onCommentClick()
+                }.padding(horizontal = 8.dp, vertical = 4.dp)) {
+                    Text("💬", fontSize = 18.sp) // Ícone universal de comentário
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("${post.commentsCount}", fontSize = 14.sp, color = TextSecondary, fontWeight = FontWeight.Medium)
+                }
             }
         }
     }
