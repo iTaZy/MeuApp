@@ -50,6 +50,7 @@ fun TelaConexoes(
     viewModel: ConexoesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val matchState by viewModel.matchState.collectAsState() // 👇 NOVO: Escuta os matches!
 
     var nomeUsuario by remember { mutableStateOf("Usuário") }
     var carregandoDados by remember { mutableStateOf(true) }
@@ -488,6 +489,20 @@ fun TelaConexoes(
                 }
             }
             RodapeUsuario(navController = navController, selected = "Matches")
+        }
+        if (matchState is com.tazy.meuapp.viewmodel.MatchState.NewMatch) {
+            val matchData = matchState as com.tazy.meuapp.viewmodel.MatchState.NewMatch
+
+            com.tazy.meuapp.ui.components.MatchNotification(
+                isVisible = true,
+                currentUserName = nomeUsuario,
+                matchedProfile = matchData.matchedProfile,
+                onDismiss = { viewModel.clearMatchState() },
+                onMessageClick = {
+                    viewModel.clearMatchState() // Limpa o popup da tela
+                    navController.navigate("chat/${matchData.matchId}") // Navega pro chat
+                }
+            )
         }
     }
 }
