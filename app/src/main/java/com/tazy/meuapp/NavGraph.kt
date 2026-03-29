@@ -84,5 +84,10 @@ fun NavGraph() {
             val userId = backStackEntry.arguments?.getString("userId") ?: ""
             TelaPerfilUsuario(navController = navController, userId = userId)
         }
+
+        // ✨ NOVA ROTA AQUI!
+        composable("telaConfiguracoes") {
+            TelaConfiguracoes(navController = navController)
+        }
     }
 }

@@ -18,12 +18,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale // ✨ IMPORTANTE
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage // ✨ IMPORTANTE
 import com.google.firebase.auth.FirebaseAuth
 import com.tazy.meuapp.TelaPrincipalViewModel
 import com.tazy.meuapp.model.CabecalhoUsuario
@@ -35,7 +37,7 @@ import com.tazy.meuapp.viewmodel.PerfilUsuarioViewModel
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class) // ✨ Adicionado o LayoutApi para o FlowRow
 @Composable
 fun TelaPerfilUsuario(
     navController: NavController,
@@ -50,7 +52,6 @@ fun TelaPerfilUsuario(
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid
     val isOwnProfile = currentUserId == userId
 
-    // Estado do BottomSheet de Comentários
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var postSelecionadoParaComentar by remember { mutableStateOf<Post?>(null) }
     var novoComentarioTexto by remember { mutableStateOf("") }
@@ -121,6 +122,8 @@ fun TelaPerfilUsuario(
                     ) {
                         item {
                             Spacer(modifier = Modifier.height(16.dp))
+
+                            // ✨ FOTO GIGANTE DO PERFIL AQUI!
                             Box(
                                 modifier = Modifier
                                     .size(140.dp)
@@ -129,8 +132,24 @@ fun TelaPerfilUsuario(
                                     .border(2.dp, gradientBorder, CircleShape),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.size(70.dp), tint = TextSecondary.copy(alpha = 0.5f))
+                                if (!state.fotoPerfil.isNullOrEmpty()) {
+                                    AsyncImage(
+                                        model = state.fotoPerfil,
+                                        contentDescription = "Foto de perfil",
+                                        contentScale = ContentScale.Crop, // Corta redondo bonitinho
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.Person,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(70.dp),
+                                        tint = TextSecondary.copy(alpha = 0.5f)
+                                    )
+                                }
                             }
+                            // ✨ FIM DA FOTO
+
                             Spacer(modifier = Modifier.height(24.dp))
                             val nomeExibicao = if (state.idade > 0) "${state.nome}, ${state.idade}" else state.nome
                             Text(text = nomeExibicao, fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = TextPrimary)
@@ -175,7 +194,6 @@ fun TelaPerfilUsuario(
                                     if (todosGostos.isEmpty()) {
                                         Text("Esta pessoa ainda não definiu seus interesses.", color = TextSecondary, fontSize = 14.sp, fontStyle = FontStyle.Italic)
                                     } else {
-                                        @OptIn(ExperimentalLayoutApi::class)
                                         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                                             todosGostos.forEach { interesse ->
                                                 TagPerfil(text = interesse, color = AccentBlue, isFilled = true)

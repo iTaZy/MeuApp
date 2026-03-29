@@ -22,6 +22,7 @@ import com.tazy.meuapp.R
 import com.tazy.meuapp.AccentCyan
 import com.tazy.meuapp.AccentPurple
 import com.tazy.meuapp.BgDeep
+import com.tazy.meuapp.BgMid
 
 @Composable
 fun RodapeUsuario(navController: NavController, selected: String) {
@@ -52,7 +53,9 @@ fun RodapeUsuario(navController: NavController, selected: String) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 10.dp, bottom = 16.dp),
+                .background(BgMid) // ou a cor que você estiver usando
+                .navigationBarsPadding() // ✨ NOVO: Cria um escudo contra os botões nativos do celular!
+                .padding(vertical = 12.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
             verticalAlignment = Alignment.Bottom
         ) {

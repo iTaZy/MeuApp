@@ -122,7 +122,8 @@ class ConexoesViewModel : ViewModel() {
                     val profile = Profile(
                         id = document.id,
                         name = nome,
-                        imageUrl = "",
+                        // 👇 AGORA ELE PUXA A FOTO DO BANCO:
+                        imageUrl = document.getString("fotoPerfil") ?: "",
                         age = idade,
                         bio = if (bio.isNotEmpty()) bio else "Sem bio disponível",
                         sexualidade = sexualidadePerfil,

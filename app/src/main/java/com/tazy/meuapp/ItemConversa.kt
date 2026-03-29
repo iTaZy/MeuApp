@@ -15,17 +15,20 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale // ✨ NOVO IMPORT
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage // ✨ NOVO IMPORT
 
 @Composable
 fun ItemConversa(
     nome: String,
+    fotoUrl: String? = null, // ✨ NOVO PARÂMETRO DA FOTO
     mensagem: String,
     horario: String,
-    naoLida: Boolean = false, // NOVO PARÂMETRO
+    naoLida: Boolean = false,
     onClick: () -> Unit = {}
 ) {
     val AccentCyan = Color(0xFF4DD9E8)
@@ -49,7 +52,17 @@ fun ItemConversa(
                 .border(2.dp, Brush.linearGradient(listOf(AccentCyan, AccentPurple)), CircleShape),
             contentAlignment = Alignment.Center
         ) {
-            Icon(Icons.Default.Person, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(28.dp))
+            // ✨ MÁGICA DA FOTO ACONTECE AQUI 👇
+            if (!fotoUrl.isNullOrEmpty()) {
+                AsyncImage(
+                    model = fotoUrl,
+                    contentDescription = "Foto de $nome",
+                    contentScale = ContentScale.Crop, // Corta a foto pra caber no círculo
+                    modifier = Modifier.fillMaxSize().clip(CircleShape)
+                )
+            } else {
+                Icon(Icons.Default.Person, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(28.dp))
+            }
         }
 
         Spacer(modifier = Modifier.width(16.dp))

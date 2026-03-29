@@ -21,7 +21,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.tazy.meuapp.model.CabecalhoUsuario
 import com.tazy.meuapp.model.RodapeUsuario
-// 👇 O IMPORT CORRIGIDO ESTÁ AQUI:
 import com.tazy.meuapp.viewmodel.MatchesUiState
 import com.tazy.meuapp.viewmodel.MatchesViewModel
 import com.tazy.meuapp.ui.components.ItemConversa
@@ -180,6 +179,9 @@ fun TelaLobbyPrincipal(
                                     items(currentState.matches) { match ->
                                         val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
                                         val otherUserName = match.getOtherUserName(currentUserId)
+                                        // ✨ NOVO: Pega a url da foto do outro usuário
+                                        val otherUserFoto = match.getOtherUserImageUrl(currentUserId)
+
                                         val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
                                         val displayTime = match.lastMessageTime?.let { timeFormat.format(it) } ?: timeFormat.format(match.timestamp)
                                         val displayMessage = if (match.lastMessage.isNotEmpty()) match.lastMessage else "Vocês se conectaram! Envie a primeira mensagem."
@@ -188,6 +190,7 @@ fun TelaLobbyPrincipal(
 
                                         ItemConversa(
                                             nome = otherUserName,
+                                            fotoUrl = otherUserFoto, // ✨ NOVO: Passa a foto para o componente!
                                             mensagem = displayMessage,
                                             horario = displayTime,
                                             naoLida = isUnread,
@@ -209,15 +212,19 @@ fun TelaLobbyPrincipal(
                                     items(currentState.arquivadas) { match ->
                                         val currentUserId = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid ?: ""
                                         val otherUserName = match.getOtherUserName(currentUserId)
+                                        // ✨ NOVO: Pega a url da foto do outro usuário
+                                        val otherUserFoto = match.getOtherUserImageUrl(currentUserId)
+
                                         val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault())
                                         val displayTime = match.lastMessageTime?.let { timeFormat.format(it) } ?: timeFormat.format(match.timestamp)
                                         val displayMessage = if (match.lastMessage.isNotEmpty()) match.lastMessage else "Conversa arquivada."
 
                                         ItemConversa(
                                             nome = otherUserName,
+                                            fotoUrl = otherUserFoto, // ✨ NOVO: Passa a foto para o componente!
                                             mensagem = displayMessage,
                                             horario = displayTime,
-                                            naoLida = false, // Arquivadas não chamam a atenção visual
+                                            naoLida = false,
                                             onClick = { navController.navigate("chat/${match.id}") }
                                         )
                                     }

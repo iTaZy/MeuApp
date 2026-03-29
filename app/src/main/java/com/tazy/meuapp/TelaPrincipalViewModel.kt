@@ -42,6 +42,7 @@ class TelaPrincipalViewModel : ViewModel() {
         try {
             val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
             val nome = usuarioDoc.getString("nome") ?: ""
+            val foto = usuarioDoc.getString("fotoPerfil") // ✨ NOVO: Puxando a foto
             val meusGrupos = usuarioDoc.get("grupos") as? List<String> ?: emptyList()
 
             val interessePrincipal = usuarioDoc.getString("interesse") ?: ""
@@ -53,7 +54,8 @@ class TelaPrincipalViewModel : ViewModel() {
             todosInteresses.addAll(subcategorias.filter { it.isNotBlank() })
             todosInteresses.addAll(outrosInteresses.filter { it.isNotBlank() })
 
-            _state.value = _state.value.copy(nomeUsuario = nome)
+            // ✨ NOVO: Passando a foto para o estado da tela
+            _state.value = _state.value.copy(nomeUsuario = nome, fotoPerfilUrl = foto)
 
             observarUsuario()
             carregarGruposAtivos(uid)
@@ -73,6 +75,7 @@ class TelaPrincipalViewModel : ViewModel() {
             try {
                 val usuarioDoc = firestore.collection("usuarios").document(uid).get().await()
 
+                val foto = usuarioDoc.getString("fotoPerfil") // ✨ NOVO: Atualizando a foto
                 val interessePrincipal = usuarioDoc.getString("interesse") ?: ""
                 val subcategorias = usuarioDoc.get("subcategorias") as? List<String> ?: emptyList()
                 val outrosInteresses = usuarioDoc.get("outrosInteresses") as? List<String> ?: emptyList()
@@ -81,6 +84,9 @@ class TelaPrincipalViewModel : ViewModel() {
                 if (interessePrincipal.isNotBlank()) todosInteresses.add(interessePrincipal)
                 todosInteresses.addAll(subcategorias.filter { it.isNotBlank() })
                 todosInteresses.addAll(outrosInteresses.filter { it.isNotBlank() })
+
+                // ✨ NOVO: Atualiza a foto no state junto com o restante
+                _state.value = _state.value.copy(fotoPerfilUrl = foto)
 
                 carregarGruposAtivos(uid)
                 carregarGruposRecomendados(
@@ -101,8 +107,13 @@ class TelaPrincipalViewModel : ViewModel() {
                     _state.value = _state.value.copy(erro = err.message)
                     return@addSnapshotListener
                 }
-                snap?.getString("nome")?.let { nome ->
-                    _state.value = _state.value.copy(nomeUsuario = nome)
+                if (snap != null) {
+                    val nome = snap.getString("nome")
+                    val foto = snap.getString("fotoPerfil") // ✨ NOVO: Observa a foto em tempo real!
+
+                    if (nome != null) {
+                        _state.value = _state.value.copy(nomeUsuario = nome, fotoPerfilUrl = foto)
+                    }
                 }
             }
     }
@@ -158,7 +169,7 @@ class TelaPrincipalViewModel : ViewModel() {
                             descricao = doc.getString("descricao") ?: "Grupo sem descrição",
                             relevancia = (doc.getLong("relevancia") ?: 3).toInt(),
                             membrosCount = (doc.getLong("membrosCount") ?: 1).toInt(),
-                            interesses = doc.get("interesses") as? List<String> ?: emptyList() // AQUI!
+                            interesses = doc.get("interesses") as? List<String> ?: emptyList()
                         )
                     }
                 gruposRecomendados.addAll(gruposPorInteresse)
@@ -180,7 +191,7 @@ class TelaPrincipalViewModel : ViewModel() {
                             descricao = doc.getString("descricao") ?: "Grupo sem descrição",
                             relevancia = (doc.getLong("relevancia") ?: 3).toInt(),
                             membrosCount = (doc.getLong("membrosCount") ?: 1).toInt(),
-                            interesses = doc.get("interesses") as? List<String> ?: emptyList() // E AQUI!
+                            interesses = doc.get("interesses") as? List<String> ?: emptyList()
                         )
                     }
                 gruposRecomendados.addAll(gruposPopulares)

@@ -25,6 +25,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale // 👇 NOVO IMPORT
 import androidx.compose.ui.res.vectorResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage // 👇 NOVO IMPORT
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.tazy.meuapp.R
@@ -50,12 +52,12 @@ fun TelaConexoes(
     viewModel: ConexoesViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-    val matchState by viewModel.matchState.collectAsState() // 👇 NOVO: Escuta os matches!
+    val matchState by viewModel.matchState.collectAsState()
 
     var nomeUsuario by remember { mutableStateOf("Usuário") }
+    var fotoUsuario by remember { mutableStateOf<String?>(null) } // 👇 NOVO: Estado da sua foto
     var carregandoDados by remember { mutableStateOf(true) }
 
-    // Controlo do Dialog de Filtros
     var mostrarFiltro by remember { mutableStateOf(false) }
 
     // Paleta KLANCORE
@@ -87,6 +89,7 @@ fun TelaConexoes(
             firestore.collection("usuarios").document(currentUser.uid).get()
                 .addOnSuccessListener { document ->
                     nomeUsuario = document.getString("nome") ?: currentUser.displayName ?: "Usuário"
+                    fotoUsuario = document.getString("fotoPerfil") // 👇 NOVO: Puxando a sua foto
                     carregandoDados = false
                 }
                 .addOnFailureListener {
@@ -127,12 +130,10 @@ fun TelaConexoes(
         // --- DIALOG DE FILTROS ---
         if (mostrarFiltro) {
             Dialog(onDismissRequest = { mostrarFiltro = false }) {
-                // Estados locais do popup
                 var faixaIdade by remember { mutableStateOf(viewModel.filtroIdadeMinima.toFloat()..viewModel.filtroIdadeMaxima.toFloat()) }
                 var interesseSelecionado by remember { mutableStateOf(viewModel.filtroInteresseFocado) }
                 var sexualidadeSelecionada by remember { mutableStateOf(viewModel.filtroSexualidade) }
 
-                // Opções para os chips
                 val meusInteresses by viewModel.meusInteresses.collectAsState()
                 val opcoesSexualidade = listOf("Heterossexual", "Homossexual",  "Bissexual", "Pansexual")
 
@@ -223,7 +224,6 @@ fun TelaConexoes(
 
                         Spacer(modifier = Modifier.height(28.dp))
 
-                        // BOTÕES DO DIALOG
                         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                             TextButton(onClick = { mostrarFiltro = false }) {
                                 Text("Cancelar", color = TextSecondary)
@@ -254,8 +254,9 @@ fun TelaConexoes(
 
         Column(modifier = Modifier.fillMaxSize()) {
             if (!carregandoDados) {
+                // 👇 AQUI! O Cabeçalho agora recebe a foto do usuário também!
                 CabecalhoUsuario(
-                    state = TelaPrincipalState(nomeUsuario = nomeUsuario, codigoCondominio = ""),
+                    state = TelaPrincipalState(nomeUsuario = nomeUsuario, fotoPerfilUrl = fotoUsuario),
                     navController = navController
                 )
             }
@@ -268,7 +269,6 @@ fun TelaConexoes(
             ) {
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Título e Botão de Filtro
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
@@ -359,18 +359,28 @@ fun TelaConexoes(
                                     .background(FieldBg)
                                     .border(1.5.dp, gradientBorder, RoundedCornerShape(24.dp))
                             ) {
+                                // 👇 MÁGICA DA FOTO DA OUTRA PESSOA AQUI!
                                 Box(
                                     modifier = Modifier
                                         .fillMaxSize()
                                         .background(Brush.radialGradient(listOf(AccentCyan.copy(0.1f), Color.Transparent))),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Person,
-                                        contentDescription = "Foto",
-                                        modifier = Modifier.size(100.dp),
-                                        tint = TextSecondary.copy(alpha = 0.3f)
-                                    )
+                                    if (profile.imageUrl.isNotEmpty()) {
+                                        AsyncImage(
+                                            model = profile.imageUrl,
+                                            contentDescription = "Foto de ${profile.name}",
+                                            contentScale = ContentScale.Crop,
+                                            modifier = Modifier.fillMaxSize()
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = Icons.Default.Person,
+                                            contentDescription = "Foto",
+                                            modifier = Modifier.size(100.dp),
+                                            tint = TextSecondary.copy(alpha = 0.3f)
+                                        )
+                                    }
                                 }
 
                                 Box(
@@ -499,15 +509,14 @@ fun TelaConexoes(
                 matchedProfile = matchData.matchedProfile,
                 onDismiss = { viewModel.clearMatchState() },
                 onMessageClick = {
-                    viewModel.clearMatchState() // Limpa o popup da tela
-                    navController.navigate("chat/${matchData.matchId}") // Navega pro chat
+                    viewModel.clearMatchState()
+                    navController.navigate("chat/${matchData.matchId}")
                 }
             )
         }
     }
 }
 
-// Componente visual para os botões arredondados (Chips) dentro do popup de filtros
 @Composable
 fun FilterChipVisual(text: String, isSelected: Boolean, onClick: () -> Unit) {
     val AccentCyan = Color(0xFF4DD9E8)

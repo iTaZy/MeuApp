@@ -56,6 +56,14 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        try {
+            val config = hashMapOf(
+                "cloud_name" to "dchhtdglp"
+            )
+            com.cloudinary.android.MediaManager.init(this, config)
+        } catch (e: Exception) {
+            // Ignora o erro se o Android tentar inicializar duas vezes
+        }
         setContent {
             MeuAppTheme {
                 NavGraph()

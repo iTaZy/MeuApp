@@ -1,5 +1,9 @@
 package com.tazy.meuapp
 
+import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.*
@@ -18,12 +22,17 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.*
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import com.cloudinary.android.MediaManager
+import com.cloudinary.android.callback.ErrorInfo
+import com.cloudinary.android.callback.UploadCallback
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -203,19 +212,20 @@ fun LoginPrimeiraVez(
     var sexualidade             by remember { mutableStateOf("") }
     var signo                   by remember { mutableStateOf("") }
     var interesseAtual          by remember { mutableStateOf<String?>(null) }
+    var fotoUrl                 by remember { mutableStateOf<String?>(null) } // NOVO: Guarda a URL da foto
     val subcategoriasSelecionadas = remember { mutableStateListOf<String>() }
     val outrosInteressesSelecionados = remember { mutableStateListOf<String>() }
     var erro                    by remember { mutableStateOf("") }
     var carregando              by remember { mutableStateOf(true) }
+    var fazendoUpload           by remember { mutableStateOf(false) } // NOVO: Controle de loading da foto
     var mostrarSeletorInteresse by remember { mutableStateOf(false) }
-    var salvando by remember { mutableStateOf(false) }
 
     // Estados para o Dropdown de Sexualidade
     var expandedSexualidade by remember { mutableStateOf(false) }
     val opcoesSexualidade = listOf("Heterossexual", "Homossexual", "Bissexual", "Pansexual")
 
     val subcategorias = interesseAtual?.let { subcategoriasPorInteresse[it] } ?: emptyList()
-    val botaoAtivo    = nome.isNotBlank() && idade.isNotBlank() && sexualidade.isNotBlank() && subcategoriasSelecionadas.isNotEmpty()
+    val botaoAtivo    = nome.isNotBlank() && idade.isNotBlank() && sexualidade.isNotBlank() && subcategoriasSelecionadas.isNotEmpty() && !fazendoUpload
 
     // Cores auxiliares para facilitar o uso no dropdown
     val BgMid = Color(0xFF0B1422)
@@ -229,6 +239,43 @@ fun LoginPrimeiraVez(
     val FieldBorder = Color(0xFFFFFFFF).copy(alpha = 0.18f)
     val FieldFocused = Color(0xFFFFFFFF).copy(alpha = 0.45f)
 
+    // ── O Lançador que abre a galeria do celular ──
+    val pickMedia = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        if (uri != null) {
+            fazendoUpload = true
+            erro = ""
+
+            MediaManager.get().upload(uri)
+                .unsigned("Klancore") // ⚠️ AVISO: Mude para o nome do seu Preset no Cloudinary (ex: ml_default)
+                .callback(object : UploadCallback {
+                    override fun onStart(requestId: String) {}
+                    override fun onProgress(requestId: String, bytes: Long, totalBytes: Long) {}
+
+                    override fun onSuccess(requestId: String, resultData: Map<*, *>) {
+                        val urlSegura = resultData["secure_url"] as String
+
+                        // Salva imediatamente no Firebase para não perder
+                        if (currentUser != null) {
+                            firestore.collection("usuarios").document(currentUser.uid)
+                                .update("fotoPerfil", urlSegura)
+                                .addOnSuccessListener {
+                                    fotoUrl = urlSegura
+                                    fazendoUpload = false
+                                }
+                        }
+                    }
+
+                    override fun onError(requestId: String, e: ErrorInfo) {
+                        Log.e("Upload", "Erro: ${e.description}")
+                        erro = "Erro ao fazer upload da imagem."
+                        fazendoUpload = false
+                    }
+
+                    override fun onReschedule(requestId: String, e: ErrorInfo) {}
+                }).dispatch()
+        }
+    }
+
     // ── carrega dados ──
     LaunchedEffect(currentUser) {
         if (currentUser != null) {
@@ -241,13 +288,14 @@ fun LoginPrimeiraVez(
                     sexualidade = doc.getString("sexualidade") ?: ""
                     signo       = doc.getString("signo") ?: ""
                     interesseAtual = doc.getString("interesse")
+                    fotoUrl     = doc.getString("fotoPerfil") // NOVO: Puxa a foto salva
 
                     // suporte a lista ou string única legada
                     val subs = doc.get("subcategorias")
                     when (subs) {
                         is List<*> -> subcategoriasSelecionadas.addAll(subs.filterIsInstance<String>())
                         is String  -> if (subs.isNotBlank()) subcategoriasSelecionadas.add(subs)
-                    }// ADICIONA ESTE BLOCO:
+                    }
                     val outros = doc.get("outrosInteresses")
                     if (outros is List<*>) {
                         outrosInteressesSelecionados.addAll(outros.filterIsInstance<String>())
@@ -409,16 +457,30 @@ fun LoginPrimeiraVez(
                         modifier = Modifier.padding(top = 4.dp, bottom = 24.dp)
                     )
 
-                    // ── foto ──
+                    // ── FOTO DE PERFIL INTERATIVA ──
                     Box(
                         modifier = Modifier
                             .size(100.dp)
                             .clip(CircleShape)
                             .background(Brush.radialGradient(listOf(AccentCyan.copy(0.2f), FieldBg)))
-                            .border(2.dp, Brush.linearGradient(listOf(AccentCyan, AccentPurple)), CircleShape),
+                            .border(2.dp, Brush.linearGradient(listOf(AccentCyan, AccentPurple)), CircleShape)
+                            .clickable(enabled = !fazendoUpload) {
+                                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Default.Person, null, modifier = Modifier.size(48.dp), tint = TextSecondary)
+                        if (fazendoUpload) {
+                            CircularProgressIndicator(color = AccentCyan, strokeWidth = 3.dp, modifier = Modifier.size(40.dp))
+                        } else if (fotoUrl.isNullOrEmpty()) {
+                            Icon(Icons.Default.Person, null, modifier = Modifier.size(48.dp), tint = TextSecondary)
+                        } else {
+                            AsyncImage(
+                                model = fotoUrl,
+                                contentDescription = "Sua Foto",
+                                contentScale = ContentScale.Crop, // Garante o corte circular perfeito
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
                     }
 
                     Spacer(Modifier.height(10.dp))
@@ -428,10 +490,12 @@ fun LoginPrimeiraVez(
                             .clip(RoundedCornerShape(20.dp))
                             .background(FieldBg)
                             .border(1.dp, Brush.linearGradient(listOf(AccentCyan, AccentPurple)), RoundedCornerShape(20.dp))
-                            .clickable { }
+                            .clickable(enabled = !fazendoUpload) {
+                                pickMedia.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                            }
                             .padding(horizontal = 16.dp, vertical = 8.dp)
                     ) {
-                        Text("Alterar foto de perfil", color = AccentCyan, fontSize = 13.sp)
+                        Text(if (fazendoUpload) "Enviando..." else "Alterar foto de perfil", color = AccentCyan, fontSize = 13.sp)
                     }
 
                     Spacer(Modifier.height(28.dp))
@@ -480,7 +544,7 @@ fun LoginPrimeiraVez(
                             OutlinedTextField(
                                 value = sexualidade,
                                 onValueChange = {},
-                                readOnly = true, // Impede a digitação livre
+                                readOnly = true,
                                 placeholder = { Text("Sexualidade", color = TextSecondary) },
                                 leadingIcon = { Icon(Icons.Default.Favorite, null, tint = TextSecondary) },
                                 trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expandedSexualidade) },
@@ -780,11 +844,12 @@ fun LoginPrimeiraVez(
                                 "email"          to email,
                                 "bio"            to bio,
                                 "idade"          to idadeNum,
-                                "sexualidade"    to sexualidade, // Agora padronizada!
+                                "sexualidade"    to sexualidade,
                                 "signo"          to signo,
                                 "interesse"      to interesseAtual,
                                 "subcategorias"  to subcategoriasSelecionadas.toList(),
-                                "outrosInteresses" to outrosInteressesSelecionados.toList()
+                                "outrosInteresses" to outrosInteressesSelecionados.toList(),
+                                "fotoPerfil"     to (fotoUrl ?: "") // NOVO: Garante a persistência da imagem
                             )
 
                             firestore.collection("usuarios").document(currentUser.uid)

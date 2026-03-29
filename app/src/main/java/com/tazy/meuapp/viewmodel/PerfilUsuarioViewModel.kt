@@ -22,7 +22,9 @@ import javax.inject.Inject
 sealed class PerfilUiState {
     object Loading : PerfilUiState()
     data class Success(
+        val id: String,
         val nome: String,
+        val fotoPerfil: String? = null, // ✨ Guarda a foto do perfil
         val idade: Int,
         val bio: String,
         val sexualidade: String,
@@ -57,6 +59,7 @@ class PerfilUsuarioViewModel @Inject constructor(
 
                 if (document.exists()) {
                     val nome = document.getString("nome") ?: "Usuário"
+                    val fotoPerfil = document.getString("fotoPerfil") // ✨ Puxa o link da foto do banco!
                     val idade = document.getLong("idade")?.toInt() ?: 0
                     val bio = document.getString("bio") ?: ""
                     val sexualidade = document.getString("sexualidade") ?: ""
@@ -87,7 +90,9 @@ class PerfilUsuarioViewModel @Inject constructor(
                     }
 
                     _uiState.value = PerfilUiState.Success(
+                        id = document.id, // ✨ ID passado corretamente
                         nome = nome,
+                        fotoPerfil = fotoPerfil, // ✨ Foto passada corretamente para a tela
                         idade = idade,
                         bio = bio,
                         sexualidade = sexualidade,

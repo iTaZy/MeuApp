@@ -46,6 +46,12 @@ android {
 }
 
 dependencies {
+
+
+    implementation("com.google.firebase:firebase-messaging-ktx")
+    // Cloudinary
+    implementation("com.cloudinary:cloudinary-android:2.5.0")
+    implementation("io.coil-kt:coil-compose:2.5.0")
     // Firebase
     implementation("com.google.firebase:firebase-auth-ktx:22.3.1")
     implementation("com.google.firebase:firebase-firestore-ktx:24.10.2")

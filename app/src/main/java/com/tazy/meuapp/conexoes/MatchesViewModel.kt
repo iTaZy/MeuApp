@@ -69,12 +69,18 @@ class MatchesViewModel : ViewModel() {
                             val user1Name = user1Doc.getString("nome") ?: "Usuário"
                             val user2Name = user2Doc.getString("nome") ?: "Usuário"
 
+                            // ✨ NOVO: Busca as fotos no banco de dados!
+                            val user1Image = user1Doc.getString("fotoPerfil") ?: ""
+                            val user2Image = user2Doc.getString("fotoPerfil") ?: ""
+
                             val match = Match(
                                 id = document.id,
                                 user1Id = user1Id,
                                 user2Id = user2Id,
                                 user1Name = user1Name,
                                 user2Name = user2Name,
+                                user1ImageUrl = user1Image, // ✨ NOVO
+                                user2ImageUrl = user2Image, // ✨ NOVO
                                 timestamp = document.getDate("timestamp") ?: Date(),
                                 lastMessage = document.getString("lastMessage") ?: "",
                                 lastMessageTime = document.getDate("lastMessageTime"),
